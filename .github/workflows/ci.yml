@@ -31,6 +31,9 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      - name: Build web app
+        run: pnpm run web:build
+
       - name: Test (Node)
         run: pnpm run test:node
 
@@ -39,3 +42,103 @@ jobs:
 
       - name: Test (Browser)
         run: pnpm run test:browser
+
+      # Verify the published tarball ships dist (and only dist), that the
+      # `was-conformance` bin survives packing, and that it runs from a
+      # clean install of the tarball.
+      - name: Pack smoke test
+        run: |
+          set -euo pipefail
+          pnpm pack --out was-conformance-suite.tgz
+          tar -tzf was-conformance-suite.tgz > pack-contents.txt
+          grep -q '^package/dist/cli/index.js$' pack-contents.txt
+          if grep -qE '^package/(web|src|test)/' pack-contents.txt; then
+            echo 'Tarball contains files outside dist:' && cat pack-contents.txt
+            exit 1
+          fi
+          install_dir="$(mktemp -d)"
+          tarball="$PWD/was-conformance-suite.tgz"
+          cd "$install_dir"
+          npm init -y > /dev/null
+          npm install "$tarball" > /dev/null
+          ./node_modules/.bin/was-conformance --version
+
+  # End-to-end guarantee that the extracted suite still tests a real server:
+  # check out was-teaching-server, boot it, and run the built CLI against it
+  # in both provisioning modes (open, and gated by an onboarding token).
+  self-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/checkout@v6
+        with:
+          repository: interop-alliance/was-teaching-server
+          path: teaching-server
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Install teaching-server dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: teaching-server
+
+      # SERVER_URL and the CLI's target URL must be byte-identical (ZCap
+      # invocation targets embed host:port), so both derive from one port.
+      - name: Run conformance CLI against the teaching server
+        run: |
+          set -euo pipefail
+
+          run_suite() {
+            local port="$1" token="${2-}"
+            local url="http://localhost:${port}"
+            local log="server-${port}.log"
+            # setsid puts the server in its own process group so the whole
+            # pnpm -> tsx -> node tree can be torn down with one group kill.
+            setsid bash -c \
+              "cd teaching-server && SERVER_URL='$url' PORT='$port' \
+                 WAS_ONBOARDING_TOKEN='$token' pnpm exec tsx src/start.ts" \
+              > "$log" 2>&1 &
+            local pid=$!
+            local healthy=""
+            for _ in $(seq 1 60); do
+              if curl -fsS "$url/health" > /dev/null 2>&1; then
+                healthy=1
+                break
+              fi
+              sleep 0.5
+            done
+            if [ -z "$healthy" ]; then
+              echo "Teaching server did not become healthy on $url"
+              cat "$log"
+              kill -- "-$pid" 2>/dev/null || true
+              exit 1
+            fi
+            local status=0
+            if [ -n "$token" ]; then
+              node dist/cli/index.js "$url" --token "$token" || status=$?
+            else
+              node dist/cli/index.js "$url" || status=$?
+            fi
+            kill -- "-$pid" 2>/dev/null || true
+            if [ "$status" -ne 0 ]; then
+              echo "Conformance run against $url exited with $status"
+              cat "$log"
+              exit "$status"
+            fi
+          }
+
+          echo '=== open provisioning ==='
+          run_suite 3002
+          echo '=== onboarding-token provisioning ==='
+          run_suite 3003 ci-self-test-token

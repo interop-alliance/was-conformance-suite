@@ -6,6 +6,7 @@
   "include": [
     "src/**/*",
     "test/**/*.ts",
+    "web/**/*.ts",
     "vite.config.ts",
     "playwright.config.ts"
   ],

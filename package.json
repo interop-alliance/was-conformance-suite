@@ -1,21 +1,24 @@
 {
-  "name": "@interop/isomorphic-lib-template",
-  "description": "A Typescript/Javascript isomorphic library template, for use in the browser, Node.js, and React Native.",
+  "name": "@interop/was-conformance-suite",
+  "description": "Conformance test suite for Wallet Attached Storage (WAS) servers, runnable as a CLI or in the browser.",
   "version": "0.0.1",
   "type": "module",
   "scripts": {
     "build": "pnpm run clear && tsc",
     "clear": "rimraf dist/*",
     "dev": "vite",
-    "fix": "eslint --fix src test && pnpm run format",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"*.md\"",
-    "lint": "eslint src test",
+    "fix": "eslint --fix src test web && pnpm run format",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"web/src/**/*.ts\" \"*.md\"",
+    "lint": "eslint src test web",
     "prepare": "pnpm run build",
     "rebuild": "pnpm run clear && pnpm run build",
     "test": "pnpm run fix && pnpm run lint && pnpm run test:node && pnpm run test:browser",
     "test:browser": "playwright test",
     "test:node": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "web:build": "vite build --config web/vite.config.ts",
+    "web:dev": "vite --config web/vite.config.ts",
+    "web:preview": "vite preview --config web/vite.config.ts"
   },
   "files": [
     "dist",
@@ -30,11 +33,22 @@
       "default": "./dist/index.js"
     }
   },
+  "bin": {
+    "was-conformance": "dist/cli/index.js"
+  },
   "module": "dist/index.js",
   "browser": "dist/index.js",
   "types": "dist/index.d.ts",
   "sideEffects": false,
   "dependencies": {
+    "@digitalcredentials/bnid": "^5.0.0",
+    "@interop/data-integrity-core": "^8.2.0",
+    "@interop/ed25519-signature": "^7.1.3",
+    "@interop/ed25519-verification-key": "^8.0.2",
+    "@interop/ezcap": "^7.3.2",
+    "@interop/was-client": "^0.14.2",
+    "assert": "^2.1.0",
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -56,6 +70,10 @@
     "provenance": true
   },
   "keywords": [
+    "wallet-attached-storage",
+    "was",
+    "conformance",
+    "test-suite",
     "isomorphic"
   ],
   "packageManager": "pnpm@11.5.0",
@@ -69,8 +87,8 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/interop-alliance/isomorphic-lib-template.git"
+    "url": "git+https://github.com/interop-alliance/was-conformance-suite.git"
   },
-  "homepage": "https://github.com/interop-alliance/isomorphic-lib-template",
-  "bugs": "https://github.com/interop-alliance/isomorphic-lib-template/issues"
+  "homepage": "https://github.com/interop-alliance/was-conformance-suite",
+  "bugs": "https://github.com/interop-alliance/was-conformance-suite/issues"
 }
