@@ -27,9 +27,7 @@ test('setup form renders the suite registry and prefills ?server=', async ({
   for (const box of await checkboxes.all()) {
     await expect(box).toBeChecked()
   }
-  await expect(
-    page.getByTestId('suite-checkbox-spaces-api')
-  ).toBeChecked()
+  await expect(page.getByTestId('suite-checkbox-spaces-api')).toBeChecked()
   // Default optional-test handling is warn.
   await expect(
     page.getByTestId('optional-mode').locator('input[value="warn"]')

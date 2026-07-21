@@ -1,5 +1,13 @@
 # @interop/was-conformance-suite Changelog
 
+## Unreleased - TBD
+
+### Fixed
+
+- Add `equality-query` to the expected default-backend `features` list in the
+  optional backend read/list tests, matching what conforming servers now
+  advertise.
+
 ## 0.1.0-0.1.1 - 2026-07-19
 
 ### Added
