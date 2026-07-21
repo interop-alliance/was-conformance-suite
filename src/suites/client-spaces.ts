@@ -219,6 +219,7 @@ export const clientSpaces: Suite<State> = {
             'conditional-writes',
             'changes-query',
             'blinded-index-query',
+            'equality-query',
             'key-epochs',
             'chunked-streams'
           ]
@@ -293,6 +294,7 @@ export const clientSpaces: Suite<State> = {
             'conditional-writes',
             'changes-query',
             'blinded-index-query',
+            'equality-query',
             'key-epochs',
             'chunked-streams'
           ]
