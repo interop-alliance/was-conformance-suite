@@ -42,10 +42,12 @@
   "sideEffects": false,
   "dependencies": {
     "@digitalcredentials/bnid": "^5.0.0",
-    "@interop/data-integrity-core": "^8.3.0",
+    "@interop/data-integrity-core": "^8.4.0",
     "@interop/ed25519-signature": "^7.1.4",
     "@interop/ed25519-verification-key": "^8.0.3",
     "@interop/ezcap": "^7.4.1",
+    "@interop/http-digest-header": "^3.0.0",
+    "@interop/http-signature-zcap-invoke": "^6.2.4",
     "assert": "^2.1.0",
     "uuid": "^14.0.0"
   },
@@ -53,8 +55,8 @@
     "@interop/was-client": ">=0.18.0 <1.0.0"
   },
   "devDependencies": {
-    "@interop/was-client": "^0.19.0",
     "@eslint/js": "^10.0.1",
+    "@interop/was-client": "^0.20.0",
     "@playwright/test": "^1.60.0",
     "@types/node": "^26.0.1",
     "@vitest/coverage-v8": "^4.1.7",

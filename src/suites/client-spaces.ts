@@ -80,6 +80,10 @@ export const clientSpaces: Suite<State> = {
       id: 'spaces.create-and-read',
       name: 'creates a space and reads it back',
       group: 'spaces',
+      specRefs: [
+        'https://wallet.storage/spec#create-space-operation',
+        'https://wallet.storage/spec#read-space-operation'
+      ],
       run: async (ctx, state) => {
         const { withoutCreatedBy } = ctx
         const { alice, newSpace } = state
@@ -99,6 +103,7 @@ export const clientSpaces: Suite<State> = {
       id: 'spaces.describe-missing-null',
       name: 'returns null when describing a missing space (404 conflation)',
       group: 'spaces',
+      specRefs: ['https://wallet.storage/spec#read-space-operation'],
       run: async (ctx, state) => {
         const { alice } = state
         const missing = await alice.was.space('no-such-space').describe()
@@ -109,6 +114,7 @@ export const clientSpaces: Suite<State> = {
       id: 'spaces.delete-idempotent',
       name: 'deletes a space and is idempotent',
       group: 'spaces',
+      specRefs: ['https://wallet.storage/spec#delete-space-operation'],
       run: async (ctx, state) => {
         const { newSpace } = state
         const space = await newSpace('Disposable')
@@ -122,6 +128,9 @@ export const clientSpaces: Suite<State> = {
       id: 'spaces.configure-update',
       name: 'configures (updates) an existing space',
       group: 'spaces',
+      specRefs: [
+        'https://wallet.storage/spec#update-or-create-by-id-space-operation'
+      ],
       run: async (ctx, state) => {
         const { newSpace } = state
         const space = await newSpace('Original')
@@ -135,6 +144,7 @@ export const clientSpaces: Suite<State> = {
       id: 'spaces.list-includes-created',
       name: 'listSpaces includes a created space',
       group: 'spaces',
+      specRefs: ['https://wallet.storage/spec#list-spaces-operation'],
       run: async (ctx, state) => {
         const { alice, newSpace } = state
         // A persistent external server may hold other spaces for Alice from
@@ -153,6 +163,10 @@ export const clientSpaces: Suite<State> = {
       id: 'collections.create-and-describe',
       name: 'creates a collection by id and reads its description',
       group: 'collections',
+      specRefs: [
+        'https://wallet.storage/spec#update-or-create-by-id-collection-operation',
+        'https://wallet.storage/spec#get-collection-description-operation'
+      ],
       run: async (ctx, state) => {
         const { withoutCreatedBy } = ctx
         const { space } = state
@@ -175,6 +189,7 @@ export const clientSpaces: Suite<State> = {
       id: 'collections.list-in-space',
       name: 'lists collections in a space',
       group: 'collections',
+      specRefs: ['https://wallet.storage/spec#list-all-collections-operation'],
       run: async (ctx, state) => {
         const { space } = state
         const listing = await space.collections()
@@ -187,6 +202,9 @@ export const clientSpaces: Suite<State> = {
       id: 'collections.add-missing-space-not-found',
       name: 'throws NotFoundError adding to a collection in a missing space',
       group: 'collections',
+      specRefs: [
+        'https://wallet.storage/spec#create-resource-add-resource-to-collection-operation'
+      ],
       run: async (ctx, state) => {
         const { alice } = state
         const orphan = alice.was.space('missing-space').collection('c')
@@ -201,6 +219,7 @@ export const clientSpaces: Suite<State> = {
       name: 'reads the backend a collection is stored on',
       group: 'backend & quota',
       optional: true,
+      specRefs: ['https://wallet.storage/spec#collection-backend-selected'],
       run: async (ctx, state) => {
         const { space } = state
         const collection = await space.createCollection({ id: 'backend-probe' })
@@ -231,6 +250,7 @@ export const clientSpaces: Suite<State> = {
       name: 'returns null reading the backend of a missing collection (404 conflation)',
       group: 'backend & quota',
       optional: true,
+      specRefs: ['https://wallet.storage/spec#collection-backend-selected'],
       run: async (ctx, state) => {
         const { space } = state
         const missing = space.collection('no-such-collection')
@@ -242,6 +262,7 @@ export const clientSpaces: Suite<State> = {
       name: "reads a collection's storage quota, scoped to its backend",
       group: 'backend & quota',
       optional: true,
+      specRefs: ['https://wallet.storage/spec#quotas'],
       run: async (ctx, state) => {
         const { space } = state
         const collection = await space.createCollection({ id: 'quota-probe' })
@@ -265,6 +286,7 @@ export const clientSpaces: Suite<State> = {
       name: 'returns null reading the quota of a missing collection (404 conflation)',
       group: 'backend & quota',
       optional: true,
+      specRefs: ['https://wallet.storage/spec#quotas'],
       run: async (ctx, state) => {
         const { space } = state
         const missing = space.collection('no-such-collection')
@@ -276,6 +298,7 @@ export const clientSpaces: Suite<State> = {
       name: 'lists the storage backends available in the space',
       group: 'space backends & quotas',
       optional: true,
+      specRefs: ['https://wallet.storage/spec#space-backends-available'],
       run: async (ctx, state) => {
         const { space } = state
         const backends = await space.backends()
@@ -306,6 +329,7 @@ export const clientSpaces: Suite<State> = {
       name: 'returns null listing backends of a missing space (404 conflation)',
       group: 'space backends & quotas',
       optional: true,
+      specRefs: ['https://wallet.storage/spec#space-backends-available'],
       run: async (ctx, state) => {
         const { alice } = state
         assert.equal(await alice.was.space('no-such-space').backends(), null)
@@ -316,6 +340,7 @@ export const clientSpaces: Suite<State> = {
       name: 'reads the space storage quota report, grouped by backend',
       group: 'space backends & quotas',
       optional: true,
+      specRefs: ['https://wallet.storage/spec#quotas'],
       run: async (ctx, state) => {
         const { space } = state
         const report = await space.quotas()
@@ -344,6 +369,7 @@ export const clientSpaces: Suite<State> = {
       name: 'reads the per-collection breakdown with includeCollections',
       group: 'space backends & quotas',
       optional: true,
+      specRefs: ['https://wallet.storage/spec#quotas'],
       run: async (ctx, state) => {
         const { space } = state
         const report = await space.quotas({ includeCollections: true })
@@ -364,6 +390,7 @@ export const clientSpaces: Suite<State> = {
       name: 'returns null reading quotas of a missing space (404 conflation)',
       group: 'space backends & quotas',
       optional: true,
+      specRefs: ['https://wallet.storage/spec#quotas'],
       run: async (ctx, state) => {
         const { alice } = state
         assert.equal(await alice.was.space('no-such-space').quotas(), null)

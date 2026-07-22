@@ -57,6 +57,7 @@ export const clientExportImport: Suite<State> = {
     {
       id: 'export-import.round-trip',
       name: 'exports a space to a tar archive and imports it into another',
+      specRefs: ['https://wallet.storage/spec#data-portability'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { newSpace, alice } = state

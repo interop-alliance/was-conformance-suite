@@ -18,6 +18,7 @@ export const server: Suite = {
     {
       id: 'server.get-root',
       name: 'should GET /',
+      specRefs: ['https://wallet.storage/spec#scope-and-conformance-profiles'],
       run: async ctx => {
         const { serverUrl } = ctx
         const response = await fetch(serverUrl)
