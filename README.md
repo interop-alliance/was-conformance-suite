@@ -4,7 +4,7 @@
 [![NPM Version](https://img.shields.io/npm/v/@interop/was-conformance-suite.svg)](https://npm.im/@interop/was-conformance-suite)
 
 > Conformance test suite for
-> [Wallet Attached Storage (WAS)](https://digitalcredentials.github.io/wallet-attached-storage-spec/)
+> [Wallet Attached Storage (WAS)](https://w3c-ccg.github.io/wallet-attached-storage-spec/)
 > servers, runnable as a CLI, in the browser, or as a library.
 
 ## Table of Contents
@@ -30,7 +30,7 @@ policies, change queries, encryption markers, ZCap delegation, and space
 export/import. It never inspects server internals -- point it at a server URL
 (plus an optional onboarding token, if the server gates provisioning) and it
 reports per-test pass/fail results against the
-[WAS spec](https://digitalcredentials.github.io/wallet-attached-storage-spec/).
+[WAS spec](https://w3c-ccg.github.io/wallet-attached-storage-spec/).
 
 ### The server URL must be byte-identical everywhere
 

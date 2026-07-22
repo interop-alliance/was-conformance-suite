@@ -1,5 +1,15 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.2.0 - TBD
+
+### Changed
+
+- **BREAKING**: `@interop/was-client` is now a peerDependency
+  (`>=0.18.0 <1.0.0`) instead of a regular dependency, so a host repo that
+  also depends on `was-client` gets a single shared copy instead of a nested
+  duplicate pinned to this suite's range. Setups with peer auto-install disabled
+  must add `@interop/was-client` themselves.
+
 ## 0.1.2 - 2026-07-21
 
 ### Fixed

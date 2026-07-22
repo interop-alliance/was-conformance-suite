@@ -46,11 +46,14 @@
     "@interop/ed25519-signature": "^7.1.4",
     "@interop/ed25519-verification-key": "^8.0.3",
     "@interop/ezcap": "^7.4.1",
-    "@interop/was-client": "^0.18.0",
     "assert": "^2.1.0",
     "uuid": "^14.0.0"
   },
+  "peerDependencies": {
+    "@interop/was-client": ">=0.18.0 <1.0.0"
+  },
   "devDependencies": {
+    "@interop/was-client": "^0.19.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.60.0",
     "@types/node": "^26.0.1",
