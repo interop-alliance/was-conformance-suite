@@ -25,9 +25,9 @@ test('suite registry loads and context builds in the browser', async ({
       generatedId: ctx.generateId()
     }
   })
-  expect(result.suiteIds).toHaveLength(12)
+  expect(result.suiteIds).toHaveLength(19)
   expect(result.suiteIds).toContain('spaces-api')
-  expect(result.testCount).toBe(95)
+  expect(result.testCount).toBe(161)
   // Deterministic seed: the did:key is stable across environments.
   expect(result.aliceDid).toMatch(/^did:key:z6Mk/)
   expect(result.generatedId).toMatch(/^[0-9a-f-]{36}$/)

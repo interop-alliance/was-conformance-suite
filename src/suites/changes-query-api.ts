@@ -85,6 +85,7 @@ export const changesQueryApi: Suite<State> = {
     {
       id: 'changes.live-docs-tombstone-checkpoint',
       name: '[root] returns live documents and a tombstone, with a checkpoint',
+      specRefs: ['https://wallet.storage/spec#query-profile-changes'],
       run: async (ctx, state) => {
         const { alice, queryUrl } = state
         const response = await alice.rootClient.request({
@@ -119,6 +120,7 @@ export const changesQueryApi: Suite<State> = {
     {
       id: 'changes.unknown-profile-501',
       name: '[root] rejects an unknown query profile with 501',
+      specRefs: ['https://wallet.storage/spec#query-profile-registry'],
       run: async (ctx, state) => {
         const { alice, queryUrl } = state
         let thrown: any
@@ -137,6 +139,73 @@ export const changesQueryApi: Suite<State> = {
         assert.match(
           thrown.response.headers.get('content-type'),
           /application\/problem\+json/
+        )
+      }
+    },
+    {
+      id: 'changes.missing-profile-400',
+      name: '[root] rejects a query body with no `profile` with 400',
+      specRefs: [
+        'https://wallet.storage/spec#query-profile-registry',
+        'https://wallet.storage/spec#invalid-request-body'
+      ],
+      run: async (ctx, state) => {
+        const { alice, queryUrl } = state
+        // The Query Profile Registry marks `profile` REQUIRED: a body that
+        // omits it is malformed (`invalid-request-body`, 400), distinct from
+        // naming a profile the server does not serve (501).
+        let expectedError: any
+        try {
+          await alice.rootClient.request({
+            url: queryUrl(),
+            method: 'POST',
+            action: 'POST',
+            json: { limit: 10 }
+          })
+        } catch (err) {
+          expectedError = err
+        }
+        assert.ok(expectedError, 'expected the missing profile to be rejected')
+        assert.equal(expectedError.response.status, 400)
+        assert.equal(
+          expectedError.data.type,
+          'https://wallet.storage/spec#invalid-request-body'
+        )
+      }
+    },
+    {
+      id: 'changes.malformed-checkpoint-400',
+      name:
+        '[root] a `changes` query with a malformed `checkpoint` is rejected ' +
+        'with 400',
+      specRefs: [
+        'https://wallet.storage/spec#query-profile-changes',
+        'https://wallet.storage/spec#invalid-request-body'
+      ],
+      run: async (ctx, state) => {
+        const { alice, queryUrl } = state
+        // When present, `checkpoint` MUST be an object with a string `id` and a
+        // string `updatedAt`; a string checkpoint is malformed and rejected
+        // with `invalid-request-body` (400).
+        let expectedError: any
+        try {
+          await alice.rootClient.request({
+            url: queryUrl(),
+            method: 'POST',
+            action: 'POST',
+            json: { profile: 'changes', checkpoint: 'not-an-object' }
+          })
+        } catch (err) {
+          expectedError = err
+        }
+        assert.ok(
+          expectedError,
+          'expected the malformed checkpoint to be rejected'
+        )
+        assert.equal(expectedError.response.status, 400)
+        assert.equal(
+          expectedError.data.type,
+          'https://wallet.storage/spec#invalid-request-body'
         )
       }
     }

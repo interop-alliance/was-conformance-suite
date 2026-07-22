@@ -76,6 +76,7 @@ export const policyApi: Suite<State> = {
     {
       id: 'policy.anonymous-no-policy-404',
       name: 'anonymous GET of a resource with no policy is denied (404)',
+      specRefs: ['https://wallet.storage/spec#access-control-policies'],
       run: async (ctx, state) => {
         const { resourceUrl } = state
         const response = await fetch(resourceUrl())
@@ -85,6 +86,10 @@ export const policyApi: Suite<State> = {
     {
       id: 'policy.put-collection-public-201',
       name: '[controller] PUT a PublicCanRead policy on the collection (201)',
+      specRefs: [
+        'https://wallet.storage/spec#access-control-policies',
+        'https://wallet.storage/spec#publiccanread'
+      ],
       run: async (ctx, state) => {
         const { alice, policyUrl } = state
         const response = await alice.rootClient.request({
@@ -98,6 +103,10 @@ export const policyApi: Suite<State> = {
     {
       id: 'policy.anonymous-public-read-200',
       name: 'anonymous GET of a resource in a PublicCanRead collection succeeds (200)',
+      specRefs: [
+        'https://wallet.storage/spec#access-control-policies',
+        'https://wallet.storage/spec#publiccanread'
+      ],
       run: async (ctx, state) => {
         const { resourceUrl } = state
         const response = await fetch(resourceUrl())
@@ -109,6 +118,7 @@ export const policyApi: Suite<State> = {
     {
       id: 'policy.unauthorized-falls-back-200',
       name: 'a caller whose capability does not authorize falls back to policy (200)',
+      specRefs: ['https://wallet.storage/spec#access-control-policies'],
       run: async (ctx, state) => {
         const { bob, resourceUrl } = state
         // Bob is not the Space controller, so his capability does not verify; the
@@ -123,6 +133,10 @@ export const policyApi: Suite<State> = {
     {
       id: 'policy.anonymous-write-rejected-401',
       name: 'anonymous write is still rejected (401) on a public collection',
+      specRefs: [
+        'https://wallet.storage/spec#access-control-policies',
+        'https://wallet.storage/spec#publiccanread'
+      ],
       run: async (ctx, state) => {
         const { resourceUrl } = state
         const response = await fetch(resourceUrl(), {
@@ -163,6 +177,7 @@ export const policyApi: Suite<State> = {
     {
       id: 'policy.delete-revokes-404',
       name: '[controller] DELETE the policy revokes public access (404)',
+      specRefs: ['https://wallet.storage/spec#access-control-policies'],
       run: async (ctx, state) => {
         const { alice, policyUrl, resourceUrl } = state
         const del = await alice.rootClient.request({
@@ -178,6 +193,10 @@ export const policyApi: Suite<State> = {
     {
       id: 'policy.resource-level-grant',
       name: 'a resource-level policy grants public read on a single resource',
+      specRefs: [
+        'https://wallet.storage/spec#access-control-policies',
+        'https://wallet.storage/spec#publiccanread'
+      ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice, resourceUrl } = state
@@ -201,6 +220,10 @@ export const policyApi: Suite<State> = {
     {
       id: 'policy.space-level-inherited',
       name: 'a space-level policy is inherited by resources',
+      specRefs: [
+        'https://wallet.storage/spec#access-control-policies',
+        'https://wallet.storage/spec#publiccanread'
+      ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice, collectionId } = state

@@ -56,6 +56,10 @@ export const clientResources: Suite<State> = {
       id: 'json.add-server-id-and-get',
       name: 'adds a JSON resource (server-generated id) and gets it back',
       group: 'JSON resources',
+      specRefs: [
+        'https://wallet.storage/spec#create-resource-add-resource-to-collection-operation',
+        'https://wallet.storage/spec#read-resource-operation'
+      ],
       run: async (ctx, state) => {
         const { jsonCollection } = state
         const result = await jsonCollection.add({ name: 'Sample', value: 42 })
@@ -72,6 +76,10 @@ export const clientResources: Suite<State> = {
       id: 'json.put-upsert-and-list',
       name: 'puts a JSON resource by id (upsert) and lists items',
       group: 'JSON resources',
+      specRefs: [
+        'https://wallet.storage/spec#update-or-create-by-id-resource-operation',
+        'https://wallet.storage/spec#list-collection-operation'
+      ],
       run: async (ctx, state) => {
         const { jsonCollection } = state
         await jsonCollection.put('greeting', { message: 'hello' })
@@ -95,6 +103,7 @@ export const clientResources: Suite<State> = {
       id: 'json.get-missing-null',
       name: 'returns null getting a missing resource (404 conflation)',
       group: 'JSON resources',
+      specRefs: ['https://wallet.storage/spec#read-resource-operation'],
       run: async (ctx, state) => {
         const { jsonCollection } = state
         assert.equal(await jsonCollection.get('no-such-resource'), null)
@@ -104,6 +113,7 @@ export const clientResources: Suite<State> = {
       id: 'json.delete-via-handle',
       name: 'deletes a resource via its handle',
       group: 'JSON resources',
+      specRefs: ['https://wallet.storage/spec#delete-resource-operation'],
       run: async (ctx, state) => {
         const { jsonCollection } = state
         await jsonCollection.put('temp', { tmp: true })
@@ -116,6 +126,10 @@ export const clientResources: Suite<State> = {
       id: 'binary.put-read-bytes-text',
       name: 'puts and reads Uint8Array bytes via getBytes/getText',
       group: 'binary resources',
+      specRefs: [
+        'https://wallet.storage/spec#update-or-create-by-id-resource-operation',
+        'https://wallet.storage/spec#read-resource-operation'
+      ],
       run: async (ctx, state) => {
         const { binaryCollection } = state
         const bytes = new TextEncoder().encode('line 1\nline 2\n')
@@ -132,6 +146,10 @@ export const clientResources: Suite<State> = {
       id: 'binary.add-returns-blob',
       name: 'add() returns a Blob from get() for non-JSON content',
       group: 'binary resources',
+      specRefs: [
+        'https://wallet.storage/spec#create-resource-add-resource-to-collection-operation',
+        'https://wallet.storage/spec#read-resource-operation'
+      ],
       run: async (ctx, state) => {
         const { binaryCollection } = state
         const blob = new Blob(['hello blob'], { type: 'text/plain' })
@@ -145,6 +163,7 @@ export const clientResources: Suite<State> = {
       id: 'binary.get-missing-null',
       name: 'getText/getBytes return null for a missing resource',
       group: 'binary resources',
+      specRefs: ['https://wallet.storage/spec#read-resource-operation'],
       run: async (ctx, state) => {
         const { binaryCollection } = state
         const handle = binaryCollection.resource('absent')
@@ -156,6 +175,10 @@ export const clientResources: Suite<State> = {
       id: 'binary.put-octet-stream-raw',
       name: 'puts raw application/octet-stream bytes (non-multipart) and reads them back',
       group: 'binary resources',
+      specRefs: [
+        'https://wallet.storage/spec#update-or-create-by-id-resource-operation',
+        'https://wallet.storage/spec#content-types-and-representations'
+      ],
       run: async (ctx, state) => {
         const { binaryCollection } = state
         const bytes = new Uint8Array([0, 1, 2, 253, 254, 255])
@@ -174,6 +197,10 @@ export const clientResources: Suite<State> = {
       id: 'binary.dotted-id-content-type',
       name: 'preserves a dotted resource id and its content-type in listings',
       group: 'binary resources',
+      specRefs: [
+        'https://wallet.storage/spec#content-types-and-representations',
+        'https://wallet.storage/spec#list-collection-operation'
+      ],
       run: async (ctx, state) => {
         const { binaryCollection } = state
         const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47])
@@ -200,6 +227,9 @@ export const clientResources: Suite<State> = {
       id: 'binary.jsonl-raw-not-parsed',
       name: 'stores application/jsonl as raw bytes, not parsed as JSON',
       group: 'binary resources',
+      specRefs: [
+        'https://wallet.storage/spec#content-types-and-representations'
+      ],
       run: async (ctx, state) => {
         const { binaryCollection } = state
         // A JSON-Lines body is several JSON values, not one. The full stack must
