@@ -1063,17 +1063,37 @@ export const spacesApi: Suite<State> = {
         })
 
         assert.equal(response.status, 200)
-        assert.deepStrictEqual(response.data, {
-          url: `/space/${alice.space3.id}/collections/`,
-          totalItems: 1,
-          items: [
-            {
-              id: collectionId,
-              name: 'Test Collection',
-              url: `/space/${alice.space3.id}/${collectionId}`
-            }
-          ]
+        // A server MAY additionally surface a `public` boolean on each item;
+        // when it does, it MUST appear on every item, and a Collection with
+        // no PublicCanRead policy attached MUST report `false`.
+        const items: Record<string, unknown>[] = response.data?.items ?? []
+        const surfacesPublic = items.some(item => 'public' in item)
+        const coreItems = items.map(item => {
+          const { public: isPublic, ...core } = item
+          if (surfacesPublic) {
+            assert.strictEqual(
+              isPublic,
+              false,
+              'a server that surfaces `public` must report it on every ' +
+                'item, and `false` for a Collection with no policy attached'
+            )
+          }
+          return core
         })
+        assert.deepStrictEqual(
+          { ...response.data, items: coreItems },
+          {
+            url: `/space/${alice.space3.id}/collections/`,
+            totalItems: 1,
+            items: [
+              {
+                id: collectionId,
+                name: 'Test Collection',
+                url: `/space/${alice.space3.id}/${collectionId}`
+              }
+            ]
+          }
+        )
       }
     }
   ]

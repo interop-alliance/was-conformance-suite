@@ -1,5 +1,15 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.3.1 - TBD
+
+### Changed
+
+- `spaces-api` suite: the List All Collections test now accepts the
+  spec-optional `public` member on listing items. When a server surfaces it, the
+  test enforces the spec's consistency rules (present on every item, and
+  explicitly `false` for a Collection with no policy attached) instead of
+  failing on the extra field.
+
 ## 0.3.0 - 2026-07-22
 
 ### Added
