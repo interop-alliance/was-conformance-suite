@@ -26,7 +26,7 @@
 
 This suite black-box tests any running Wallet Attached Storage server
 implementation over HTTP: spaces, collections, resources, access-control
-policies, change queries, encryption markers, ZCap delegation, and space
+policies, change queries, encryption descriptors, ZCap delegation, and space
 export/import. It never inspects server internals -- point it at a server URL
 (plus an optional onboarding token, if the server gates provisioning) and it
 reports per-test pass/fail results against the
@@ -121,20 +121,20 @@ Options:
 
 The available suite ids (for `--suite`) are:
 
-| id                      | tests                                  |
-| ----------------------- | -------------------------------------- |
-| `changes-query-api`     | Collection changes query profile       |
-| `client-backends`       | WasClient -- BYOS backend registration |
-| `client-delegation`     | WasClient -- Delegation                |
-| `client-export-import`  | WasClient -- Export / Import           |
-| `client-resources`      | WasClient -- Resources                 |
-| `client-spaces`         | WasClient -- Spaces & Collections      |
-| `collection-api`        | Collections API                        |
-| `encryption-marker-api` | Encryption marker API                  |
-| `policy-api`            | Access-control policy API              |
-| `resource-api`          | Resource API                           |
-| `server`                | Server                                 |
-| `spaces-api`            | Spaces                                 |
+| id                          | tests                                  |
+| --------------------------- | -------------------------------------- |
+| `changes-query-api`         | Collection changes query profile       |
+| `client-backends`           | WasClient -- BYOS backend registration |
+| `client-delegation`         | WasClient -- Delegation                |
+| `client-export-import`      | WasClient -- Export / Import           |
+| `client-resources`          | WasClient -- Resources                 |
+| `client-spaces`             | WasClient -- Spaces & Collections      |
+| `collection-api`            | Collections API                        |
+| `encryption-descriptor-api` | Encryption descriptor API              |
+| `policy-api`                | Access-control policy API              |
+| `resource-api`              | Resource API                           |
+| `server`                    | Server                                 |
+| `spaces-api`                | Spaces                                 |
 
 #### Environment-variable fallbacks
 

@@ -2,7 +2,7 @@
  * Copyright (c) 2026 Interop Alliance. All rights reserved.
  */
 /**
- * WAS conformance tests -- Collection client-side encryption marker.
+ * WAS conformance tests -- Collection client-side encryption descriptor.
  */
 import assert from '../harness/assert.js'
 import type { Suite } from '../harness/types.js'
@@ -27,9 +27,9 @@ interface State {
   createCollection: (json: object) => Promise<any>
 }
 
-export const encryptionMarkerApi: Suite<State> = {
-  id: 'encryption-marker-api',
-  name: 'Encryption marker API',
+export const encryptionDescriptorApi: Suite<State> = {
+  id: 'encryption-descriptor-api',
+  name: 'Encryption descriptor API',
 
   setup: async ctx => {
     const alice: any = { ...ctx.actors.alice }
@@ -44,7 +44,7 @@ export const encryptionMarkerApi: Suite<State> = {
       rootClient: alice.rootClient
     })
 
-    /** POSTs a Collection (raw, so an `encryption` marker can be sent). */
+    /** POSTs a Collection (raw, so an `encryption` descriptor can be sent). */
     function createCollection(json: object): Promise<any> {
       return alice.rootClient.request({
         url: new URL(`/space/${alice.space1.id}/`, ctx.serverUrl).toString(),
@@ -71,10 +71,10 @@ export const encryptionMarkerApi: Suite<State> = {
 
   tests: [
     {
-      id: 'encryption.persist-echo-marker',
-      name: '[root] persists and echoes the marker on create',
+      id: 'encryption.persist-echo-descriptor',
+      name: '[root] persists and echoes the descriptor on create',
       specRefs: [
-        'https://wallet.storage/spec#the-encryption-marker',
+        'https://wallet.storage/spec#collection-data-model',
         'https://wallet.storage/spec#collection-data-model'
       ],
       run: async (ctx, state) => {
@@ -96,13 +96,13 @@ export const encryptionMarkerApi: Suite<State> = {
       }
     },
     {
-      id: 'encryption.delegated-discovers-marker',
-      name: 'a delegated consumer discovers the marker by reading the Description',
-      specRefs: ['https://wallet.storage/spec#the-encryption-marker'],
+      id: 'encryption.delegated-discovers-descriptor',
+      name: 'a delegated consumer discovers the descriptor by reading the Description',
+      specRefs: ['https://wallet.storage/spec#collection-data-model'],
       run: async (ctx, state) => {
         const { alice, bob } = state
         // Alice grants Bob read on the vault; Bob -- who did not create it --
-        // rebuilds a handle and reads the Description, seeing the marker (this is how
+        // rebuilds a handle and reads the Description, seeing the descriptor (this is how
         // a consuming app learns to decrypt with its own keys).
         const zcap = await alice.was
           .space(alice.space1.id)
@@ -116,8 +116,8 @@ export const encryptionMarkerApi: Suite<State> = {
       }
     },
     {
-      id: 'encryption.malformed-marker-400',
-      name: '[root] rejects a malformed marker (400 invalid-request-body)',
+      id: 'encryption.malformed-descriptor-400',
+      name: '[root] rejects a malformed descriptor (400 invalid-request-body)',
       specRefs: ['https://wallet.storage/spec#invalid-request-body'],
       run: async (ctx, state) => {
         const { createCollection } = state
@@ -129,7 +129,7 @@ export const encryptionMarkerApi: Suite<State> = {
         }
         assert.ok(
           expectedError,
-          'expected the malformed-marker create to be rejected'
+          'expected the malformed-descriptor create to be rejected'
         )
         assert.equal(expectedError.response.status, 400)
         assert.equal(
@@ -149,7 +149,7 @@ export const encryptionMarkerApi: Suite<State> = {
         // rejected rather than stored opaquely. A fresh Collection keeps this
         // unambiguous -- on an already-marked one the set-once
         // `encryption-immutable` check may fire instead (see the
-        // marker-immutability tests below).
+        // descriptor-immutability tests below).
         let expectedError: any
         try {
           await createCollection({
@@ -172,7 +172,7 @@ export const encryptionMarkerApi: Suite<State> = {
     },
     {
       id: 'encryption.change-scheme-immutable',
-      name: '[root] rejects changing the scheme of an existing marker and preserves it',
+      name: '[root] rejects changing the scheme of an existing descriptor and preserves it',
       specRefs: [
         'https://wallet.storage/spec#encryption-immutable',
         'https://wallet.storage/spec#collection-data-model'
@@ -180,12 +180,12 @@ export const encryptionMarkerApi: Suite<State> = {
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice } = state
-        // The marker is set-once: changing an existing marker's scheme MUST be
+        // The descriptor is set-once: changing an existing descriptor's scheme MUST be
         // rejected with `encryption-immutable` (409). A generic suite cannot
         // name a second scheme the server recognizes, so a server whose
         // fail-closed registry gate runs first may instead report the probe
         // scheme as 400 `unsupported-encryption-scheme` -- both rejections are
-        // accepted; either way the stored marker must survive intact.
+        // accepted; either way the stored descriptor must survive intact.
         let expectedError: any
         try {
           await alice.rootClient.request({
@@ -213,7 +213,7 @@ export const encryptionMarkerApi: Suite<State> = {
             : 'https://wallet.storage/spec#unsupported-encryption-scheme'
         )
 
-        // The stored marker must be unchanged.
+        // The stored descriptor must be unchanged.
         const read = await alice.rootClient.request({
           url: new URL(`/space/${alice.space1.id}/vault`, serverUrl).toString(),
           method: 'GET'
@@ -222,8 +222,8 @@ export const encryptionMarkerApi: Suite<State> = {
       }
     },
     {
-      id: 'encryption.clear-marker-immutable',
-      name: '[root] an update cannot clear an existing marker',
+      id: 'encryption.clear-descriptor-immutable',
+      name: '[root] an update cannot clear an existing descriptor',
       specRefs: [
         'https://wallet.storage/spec#encryption-immutable',
         'https://wallet.storage/spec#collection-data-model'
@@ -234,9 +234,9 @@ export const encryptionMarkerApi: Suite<State> = {
         // Clearing is forbidden on the same set-once terms as changing. An
         // update sent without `encryption` is either rejected with
         // `encryption-immutable` (409, a server that reads the omission as a
-        // clear attempt) or accepted with the stored marker preserved (a
+        // clear attempt) or accepted with the stored descriptor preserved (a
         // server whose updates leave omitted fields untouched). What MUST NOT
-        // happen is the marker silently disappearing.
+        // happen is the descriptor silently disappearing.
         let expectedError: any
         try {
           await alice.rootClient.request({
@@ -259,7 +259,7 @@ export const encryptionMarkerApi: Suite<State> = {
           )
         }
 
-        // Either way, the stored marker must survive.
+        // Either way, the stored descriptor must survive.
         const read = await alice.rootClient.request({
           url: new URL(`/space/${alice.space1.id}/vault`, serverUrl).toString(),
           method: 'GET'

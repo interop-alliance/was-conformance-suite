@@ -49,7 +49,7 @@ interface State {
  * A minimal conforming EDV Encrypted Document, the stored representation an
  * `edv` (encrypted) Collection requires for a Resource's own content. Reused as
  * the parent-Resource body when exercising the "chunk bodies are never parsed,
- * even under an encryption marker" rule.
+ * even under an encryption descriptor" rule.
  */
 const edvDocument = {
   id: 'stream-parent',
@@ -190,7 +190,7 @@ export const chunksApi: Suite<State> = {
       json: { id: 'data', name: 'Chunked Data' }
     })
     // An encrypted (`edv`) Collection for the "chunk bytes are never parsed,
-    // even under an encryption marker" rule.
+    // even under an encryption descriptor" rule.
     await alice.rootClient.request({
       url: new URL(`/space/${alice.space1.id}/`, ctx.serverUrl).toString(),
       method: 'POST',
@@ -382,7 +382,7 @@ export const chunksApi: Suite<State> = {
     },
     {
       id: 'chunks.opaque-body-not-parsed',
-      name: '[root] a chunk body is stored verbatim and never parsed, even under an encryption marker',
+      name: '[root] a chunk body is stored verbatim and never parsed, even under an encryption descriptor',
       specRefs: [
         'https://wallet.storage/spec#store-chunk-operation',
         'https://wallet.storage/spec#read-chunk-operation'

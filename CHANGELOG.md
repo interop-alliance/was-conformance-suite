@@ -1,5 +1,27 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.4.0 - TBD
+
+### Changed
+
+- **BREAKING: the encryption suite's wire-stable ids renamed to "descriptor"**,
+  following the spec's rename of the Collection `encryption` member from
+  "marker" to "encryption descriptor". The suite id (CLI `--suite` selector /
+  report key) is now `encryption-descriptor-api` (was `encryption-marker-api`),
+  and the test ids are `encryption.persist-echo-descriptor`,
+  `encryption.delegated-discovers-descriptor`,
+  `encryption.malformed-descriptor-400`, and
+  `encryption.clear-descriptor-immutable`; `encryption.change-scheme-immutable`
+  and `encryption.unrecognized-scheme-400` are unchanged. Report consumers and
+  `--suite`/`--grep` invocations keyed on the old strings must update. The
+  `encryptionMarkerApi` export is now `encryptionDescriptorApi` (file
+  `src/suites/encryption-descriptor-api.ts`), and report-visible test names and
+  prose (including the chunks-api test naming the descriptor) follow suit.
+- The two `specRefs` pointing at the dangling anchor
+  `https://wallet.storage/spec#the-encryption-marker` (which never existed in
+  the spec) now point at the real
+  `https://wallet.storage/spec#collection-data-model` anchor.
+
 ## 0.3.1 - 2026-07-23
 
 ### Changed
