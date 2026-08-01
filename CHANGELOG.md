@@ -1,5 +1,11 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.4.1 - TBD
+
+### Changed
+
+- Update to latest `@interop/was-client@0.23.0`.
+
 ## 0.4.0 - 2026-08-01
 
 ### Changed
