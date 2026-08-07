@@ -5,7 +5,7 @@
  * WAS conformance tests -- Spaces Repository and Space API.
  */
 import assert from '../harness/assert.js'
-import type { Suite } from '../harness/types.js'
+import type { ConformanceContext, Suite } from '../harness/types.js'
 
 interface State {
   alice: any
@@ -13,6 +13,142 @@ interface State {
   bob: any
   collectionId: string
   resourceId: string
+}
+
+/**
+ * Attempts a delegated Create Space naming Alice as the body's `controller`,
+ * with the delegation chain built in one of the three verification-failure
+ * shapes the error registry folds into `controller-mismatch`:
+ *
+ * - `foreign-root`: the chain is rooted in Bob, not the body's controller --
+ *   Bob delegates POST /spaces/ to Alice's app, which invokes naming Alice;
+ * - `expired`: Alice's delegation to her app is backdated via ezcap's `now`
+ *   override, so it expired long before the invocation -- far past any
+ *   reasonable verifier clock-skew tolerance;
+ * - `tampered-proof`: Alice's delegation is mutated after signing (its
+ *   `expires` extended), so the delegation proof no longer verifies.
+ *
+ * Returns the response status and problem body plus the attempted space id,
+ * so callers can also assert the Space was never created.
+ *
+ * @param options {object}
+ * @param options.ctx {ConformanceContext}   the run context
+ * @param options.state {State}   the suite state (supplies the actors)
+ * @param options.shape {string}   one of the three failure shapes above
+ * @returns {Promise<{ spaceId: string; status?: number; problem?: any }>}
+ */
+async function attemptDelegatedCreate({
+  ctx,
+  state,
+  shape
+}: {
+  ctx: ConformanceContext
+  state: State
+  shape: 'foreign-root' | 'expired' | 'tampered-proof'
+}): Promise<{ spaceId: string; status?: number; problem?: any }> {
+  const { serverUrl, zcapClient, generateId } = ctx
+  const { alice, aliceDelegatedApp, bob } = state
+  const spacesUrl = new URL('/spaces/', serverUrl).toString()
+
+  let capability: any
+  if (shape === 'foreign-root') {
+    capability = await bob.rootClient.delegate({
+      allowedActions: ['POST'],
+      invocationTarget: spacesUrl,
+      controller: aliceDelegatedApp.did
+    })
+  } else if (shape === 'expired') {
+    // Backdating `now` two hours also backdates the default `expires`
+    // (`now` + 5 minutes), so the delegation expired ~115 minutes ago.
+    capability = await alice.rootClient.delegate({
+      allowedActions: ['POST'],
+      invocationTarget: spacesUrl,
+      controller: aliceDelegatedApp.did,
+      now: Date.now() - 2 * 60 * 60 * 1000
+    })
+  } else {
+    capability = await alice.rootClient.delegate({
+      allowedActions: ['POST'],
+      invocationTarget: spacesUrl,
+      controller: aliceDelegatedApp.did
+    })
+    // Extend `expires` (a signed field) after signing: the zcap stays
+    // well-formed and unexpired, but its delegation proof no longer verifies.
+    capability.expires =
+      new Date(Date.parse(capability.expires) + 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, -5) + 'Z'
+  }
+
+  const aliceAppClient = zcapClient({ signer: aliceDelegatedApp.signer })
+  const spaceId = generateId()
+  let status: number | undefined, problem: any
+  try {
+    const response = await aliceAppClient.request({
+      url: spacesUrl,
+      capability,
+      method: 'POST',
+      action: 'POST',
+      json: {
+        id: spaceId,
+        name: 'Space From A Failing Delegated Create',
+        controller: alice.did
+      }
+    })
+    status = response.status
+    problem = response.data
+  } catch (err: any) {
+    status = err.response?.status
+    problem = err.data
+  }
+  return { spaceId, status, problem }
+}
+
+/**
+ * Collects a problem body's `detail` text wherever the spec allows it to
+ * live: the RFC 9457 top-level `detail` member and the `detail` of each
+ * `errors` array entry (the placement the spec's canonical examples use).
+ *
+ * @param problem {any}   a parsed application/problem+json body
+ * @returns {string}   the concatenated detail text ('' when none present)
+ */
+function failureDetail(problem: any): string {
+  const entries = Array.isArray(problem?.errors) ? problem.errors : []
+  return [problem?.detail, ...entries.map((entry: any) => entry?.detail)]
+    .filter(value => typeof value === 'string' && value.length > 0)
+    .join('\n')
+}
+
+/**
+ * Asserts the Space at `spaceId` was never created: its named controller
+ * (Alice) could read it if it had been, so her authorized read must 404.
+ *
+ * @param options {object}
+ * @param options.ctx {ConformanceContext}   the run context
+ * @param options.alice {object}   the actor named as the body's controller
+ * @param options.spaceId {string}   the id the rejected create supplied
+ * @returns {Promise<void>}
+ */
+async function assertSpaceNotCreated({
+  ctx,
+  alice,
+  spaceId
+}: {
+  ctx: ConformanceContext
+  alice: any
+  spaceId: string
+}): Promise<void> {
+  let checkError: any
+  try {
+    await alice.rootClient.request({
+      url: new URL(`/space/${spaceId}`, ctx.serverUrl).toString(),
+      method: 'GET'
+    })
+  } catch (err) {
+    checkError = err
+  }
+  assert.ok(checkError, 'the rejected Space must not exist')
+  assert.equal(checkError.response.status, 404)
 }
 
 export const spacesApi: Suite<State> = {
@@ -413,6 +549,142 @@ export const spacesApi: Suite<State> = {
             /* best-effort cleanup */
           }
         }
+      }
+    },
+    {
+      id: 'repository.create-delegated-foreign-root-400',
+      name: "[delegated] POST /spaces/ via a chain rooted in a DID other than the body's controller yields controller-mismatch (400)",
+      group: 'Spaces Repository API',
+      specRefs: [
+        'https://wallet.storage/spec#create-space-errors',
+        'https://wallet.storage/spec#controller-mismatch'
+      ],
+      run: async (ctx, state) => {
+        if (ctx.onboardingToken) {
+          ctx.skip(
+            'onboarding token configured: token vouches for provisioning'
+          )
+        }
+        // Bob (not the body's controller) delegates POST /spaces/ to Alice's
+        // app, which invokes naming Alice as controller: the chain itself is
+        // internally consistent but rooted in the wrong DID, so Alice never
+        // consented to the create.
+        const { spaceId, status, problem } = await attemptDelegatedCreate({
+          ctx,
+          state,
+          shape: 'foreign-root'
+        })
+        assert.equal(status, 400)
+        assert.equal(
+          problem.type,
+          'https://wallet.storage/spec#controller-mismatch'
+        )
+        await assertSpaceNotCreated({ ctx, alice: state.alice, spaceId })
+      }
+    },
+    {
+      id: 'repository.create-delegated-expired-400',
+      name: '[delegated] POST /spaces/ via an expired delegation yields controller-mismatch (400)',
+      group: 'Spaces Repository API',
+      specRefs: [
+        'https://wallet.storage/spec#create-space-errors',
+        'https://wallet.storage/spec#controller-mismatch'
+      ],
+      run: async (ctx, state) => {
+        if (ctx.onboardingToken) {
+          ctx.skip(
+            'onboarding token configured: token vouches for provisioning'
+          )
+        }
+        // Alice's delegation to her app is genuine but expired (its proof is
+        // backdated two hours, past any clock-skew tolerance). The registry
+        // folds this into controller-mismatch: the invocation is not
+        // *currently* authorized by the body's controller.
+        const { spaceId, status, problem } = await attemptDelegatedCreate({
+          ctx,
+          state,
+          shape: 'expired'
+        })
+        assert.equal(status, 400)
+        assert.equal(
+          problem.type,
+          'https://wallet.storage/spec#controller-mismatch'
+        )
+        await assertSpaceNotCreated({ ctx, alice: state.alice, spaceId })
+      }
+    },
+    {
+      id: 'repository.create-delegated-tampered-400',
+      name: '[delegated] POST /spaces/ via a delegation whose proof fails verification yields controller-mismatch (400)',
+      group: 'Spaces Repository API',
+      specRefs: [
+        'https://wallet.storage/spec#create-space-errors',
+        'https://wallet.storage/spec#controller-mismatch'
+      ],
+      run: async (ctx, state) => {
+        if (ctx.onboardingToken) {
+          ctx.skip(
+            'onboarding token configured: token vouches for provisioning'
+          )
+        }
+        // Alice's delegation is mutated after signing, so everything lines up
+        // statically (right root, right signer, unexpired) but the delegation
+        // proof fails signature verification.
+        const { spaceId, status, problem } = await attemptDelegatedCreate({
+          ctx,
+          state,
+          shape: 'tampered-proof'
+        })
+        assert.equal(status, 400)
+        assert.equal(
+          problem.type,
+          'https://wallet.storage/spec#controller-mismatch'
+        )
+        await assertSpaceNotCreated({ ctx, alice: state.alice, spaceId })
+      }
+    },
+    {
+      id: 'repository.create-delegated-details-distinct',
+      name: '[delegated] the three delegated-create failure causes carry pairwise-distinct detail strings',
+      group: 'Spaces Repository API',
+      optional: true,
+      specRefs: [
+        'https://wallet.storage/spec#create-space-errors',
+        'https://wallet.storage/spec#controller-mismatch'
+      ],
+      run: async (ctx, state) => {
+        if (ctx.onboardingToken) {
+          ctx.skip(
+            'onboarding token configured: token vouches for provisioning'
+          )
+        }
+        // The spec SHOULD: differentiate the failure cause in the
+        // non-normative `detail` (top-level or in the `errors` array --
+        // placement is not constrained). Nothing is asserted about wording,
+        // only that the three shapes yield three different non-empty strings.
+        // Distinctness is a signal, not proof: per-request echo content in
+        // `detail` could mask an undifferentiated implementation.
+        const shapes = ['foreign-root', 'expired', 'tampered-proof'] as const
+        const details: string[] = []
+        for (const shape of shapes) {
+          const { status, problem } = await attemptDelegatedCreate({
+            ctx,
+            state,
+            shape
+          })
+          assert.equal(status, 400, `expected the ${shape} create to fail`)
+          const detail = failureDetail(problem)
+          assert.ok(
+            detail.length > 0,
+            `expected a non-empty detail on the ${shape} failure`
+          )
+          details.push(detail)
+        }
+        assert.equal(
+          new Set(details).size,
+          shapes.length,
+          'expected the three failure causes to be differentiated in detail'
+        )
       }
     },
     {

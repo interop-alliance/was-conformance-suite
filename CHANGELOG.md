@@ -1,5 +1,17 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.4.2 - TBD
+
+### Added
+
+- Delegated Create Space failure-shape tests in the `spaces-api` suite: a chain
+  rooted in a different DID than the body's `controller`, an expired delegation
+  (proof backdated via ezcap's `now` override), and a delegation whose proof
+  fails verification each yield 400 `controller-mismatch` and leave the Space
+  uncreated. An optional-tier test asserts the three failure causes carry
+  pairwise-distinct non-empty `detail` strings (top-level or in the `errors`
+  array), asserting nothing about wording.
+
 ## 0.4.1 - 2026-08-01
 
 ### Changed
