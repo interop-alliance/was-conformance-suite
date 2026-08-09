@@ -462,6 +462,262 @@ export const encryptionDescriptorApi: Suite<State> = {
         assert.deepStrictEqual(doc.custom, edvDocument)
         assert.equal(typeof doc.metaVersion, 'number')
       }
+    },
+    {
+      id: 'encryption.version-persist-echo',
+      name: '[root] persists and echoes a descriptor with an integer version',
+      specRefs: [
+        'https://wallet.storage/spec#collection-data-model',
+        'https://wallet.storage/spec#encryption-scheme-registry'
+      ],
+      run: async (ctx, state) => {
+        const { serverUrl } = ctx
+        const { alice, createCollection } = state
+        // The `version` member is an optional positive integer naming the
+        // scheme's registered wire-format revision; `edv` version `1` is the
+        // registry's baseline every conformant server recognizes.
+        const response = await createCollection({
+          id: 'versioned-vault',
+          encryption: { scheme: 'edv', version: 1 }
+        })
+        assert.equal(response.status, 201)
+
+        const read = await alice.rootClient.request({
+          url: new URL(
+            `/space/${alice.space1.id}/versioned-vault`,
+            serverUrl
+          ).toString(),
+          method: 'GET'
+        })
+        assert.equal(read.data.encryption.scheme, 'edv')
+        assert.equal(read.data.encryption.version, 1)
+      }
+    },
+    {
+      id: 'encryption.version-invalid-400',
+      name: '[root] rejects a non-integer version (400 invalid-request-body)',
+      specRefs: ['https://wallet.storage/spec#invalid-request-body'],
+      run: async (ctx, state) => {
+        const { createCollection } = state
+        // The data model: `version` is a positive integer, not a semantic
+        // version -- the pre-integer string form (e.g. "0.1") is malformed.
+        let expectedError: any
+        try {
+          await createCollection({
+            id: 'bad-version',
+            encryption: { scheme: 'edv', version: '0.1' }
+          })
+        } catch (err) {
+          expectedError = err
+        }
+        assert.ok(expectedError, 'expected the string version to be rejected')
+        assert.equal(expectedError.response.status, 400)
+        assert.equal(
+          expectedError.data.type,
+          'https://wallet.storage/spec#invalid-request-body'
+        )
+      }
+    },
+    {
+      id: 'encryption.version-explicit-1-noop',
+      name: '[root] accepts an explicit version 1 on a descriptor that had omitted it',
+      specRefs: ['https://wallet.storage/spec#collection-data-model'],
+      run: async (ctx, state) => {
+        const { serverUrl } = ctx
+        const { alice, createCollection } = state
+        // An absent `version` means `1`, so re-declaring the standing values
+        // with an explicit `version: 1` is an idempotent no-op that MUST be
+        // accepted. The read-back may keep it explicit or absent -- the two
+        // spellings are the same value.
+        const created = await createCollection({
+          id: 'versionless',
+          encryption: { scheme: 'edv' }
+        })
+        assert.equal(created.status, 201)
+        const response = await alice.rootClient.request({
+          url: new URL(
+            `/space/${alice.space1.id}/versionless`,
+            serverUrl
+          ).toString(),
+          method: 'PUT',
+          action: 'PUT',
+          json: { id: 'versionless', encryption: { scheme: 'edv', version: 1 } }
+        })
+        assert.ok(
+          response.status >= 200 && response.status < 300,
+          `expected the explicit version 1 re-declaration to be accepted, got ${response.status}`
+        )
+        const read = await alice.rootClient.request({
+          url: new URL(
+            `/space/${alice.space1.id}/versionless`,
+            serverUrl
+          ).toString(),
+          method: 'GET'
+        })
+        assert.equal(read.data.encryption.scheme, 'edv')
+        const { version } = read.data.encryption
+        assert.ok(
+          version === 1 || version === undefined,
+          `expected version 1 (explicit or absent), got ${version}`
+        )
+      }
+    },
+    {
+      id: 'encryption.version-remove-immutable',
+      name: '[root] an update cannot remove the version once set',
+      specRefs: [
+        'https://wallet.storage/spec#encryption-immutable',
+        'https://wallet.storage/spec#collection-data-model'
+      ],
+      run: async (ctx, state) => {
+        const { serverUrl } = ctx
+        const { alice } = state
+        // The descriptor is version-monotonic: removing the `version` MUST be
+        // rejected with `encryption-immutable` (409). Because an absent
+        // `version` means `1`, a server MAY instead read this re-declaration
+        // (stored version 1, incoming omitted) as the standing value and accept
+        // it as a no-op. What MUST NOT happen is the version changing to
+        // anything else.
+        let expectedError: any
+        try {
+          await alice.rootClient.request({
+            url: new URL(
+              `/space/${alice.space1.id}/versioned-vault`,
+              serverUrl
+            ).toString(),
+            method: 'PUT',
+            action: 'PUT',
+            json: { id: 'versioned-vault', encryption: { scheme: 'edv' } }
+          })
+        } catch (err) {
+          expectedError = err
+        }
+        if (expectedError) {
+          assert.equal(expectedError.response.status, 409)
+          assert.equal(
+            expectedError.data.type,
+            'https://wallet.storage/spec#encryption-immutable'
+          )
+        }
+
+        // Either way, the standing version must survive semantically.
+        const read = await alice.rootClient.request({
+          url: new URL(
+            `/space/${alice.space1.id}/versioned-vault`,
+            serverUrl
+          ).toString(),
+          method: 'GET'
+        })
+        assert.equal(read.data.encryption.scheme, 'edv')
+        const { version } = read.data.encryption
+        assert.ok(
+          version === 1 || version === undefined,
+          `expected the standing version 1 to survive, got ${version}`
+        )
+      }
+    },
+    {
+      id: 'encryption.version-raise-not-immutable',
+      name: '[root] raising the version is not an immutability conflict',
+      specRefs: [
+        'https://wallet.storage/spec#collection-data-model',
+        'https://wallet.storage/spec#encryption-scheme-registry'
+      ],
+      run: async (ctx, state) => {
+        const { serverUrl } = ctx
+        const { alice } = state
+        // Raising the `version` is explicitly permitted (a future scheme
+        // migration), subject to the registry recognition rule -- so a raise
+        // MUST NOT be rejected as `encryption-immutable`. A server that does
+        // not recognize the raised version (the registry defines only `edv` 1
+        // today) rejects it as 400 `unsupported-encryption-scheme` instead;
+        // one that recognizes or stores it opaquely accepts it.
+        let expectedError: any
+        let response: any
+        try {
+          response = await alice.rootClient.request({
+            url: new URL(
+              `/space/${alice.space1.id}/versioned-vault`,
+              serverUrl
+            ).toString(),
+            method: 'PUT',
+            action: 'PUT',
+            json: {
+              id: 'versioned-vault',
+              encryption: { scheme: 'edv', version: 2 }
+            }
+          })
+        } catch (err) {
+          expectedError = err
+        }
+        if (expectedError) {
+          assert.equal(expectedError.response.status, 400)
+          assert.equal(
+            expectedError.data.type,
+            'https://wallet.storage/spec#unsupported-encryption-scheme'
+          )
+          // The rejected raise must leave the stored descriptor unchanged.
+          const read = await alice.rootClient.request({
+            url: new URL(
+              `/space/${alice.space1.id}/versioned-vault`,
+              serverUrl
+            ).toString(),
+            method: 'GET'
+          })
+          const { version } = read.data.encryption
+          assert.ok(
+            version === 1 || version === undefined,
+            `expected the stored version 1 to survive, got ${version}`
+          )
+        } else {
+          assert.ok(
+            response.status >= 200 && response.status < 300,
+            `expected the raise to be accepted or 400, got ${response.status}`
+          )
+        }
+      }
+    },
+    {
+      id: 'encryption.version-unrecognized',
+      name: '[root] an unrecognized version is rejected or stored opaquely, never mangled',
+      optional: true,
+      specRefs: ['https://wallet.storage/spec#unsupported-encryption-scheme'],
+      run: async (ctx, state) => {
+        const { serverUrl } = ctx
+        const { alice, createCollection } = state
+        // The accept-only-what-you-enforce SHOULD applies to versions on the
+        // same terms as schemes: a version of a recognized scheme the server
+        // does not recognize SHOULD be rejected with
+        // `unsupported-encryption-scheme` rather than stored unenforced. A
+        // server taking the MAY-store path must round-trip it verbatim.
+        let expectedError: any
+        let response: any
+        try {
+          response = await createCollection({
+            id: 'future-version',
+            encryption: { scheme: 'edv', version: 99 }
+          })
+        } catch (err) {
+          expectedError = err
+        }
+        if (expectedError) {
+          assert.equal(expectedError.response.status, 400)
+          assert.equal(
+            expectedError.data.type,
+            'https://wallet.storage/spec#unsupported-encryption-scheme'
+          )
+        } else {
+          assert.equal(response.status, 201)
+          const read = await alice.rootClient.request({
+            url: new URL(
+              `/space/${alice.space1.id}/future-version`,
+              serverUrl
+            ).toString(),
+            method: 'GET'
+          })
+          assert.equal(read.data.encryption.version, 99)
+        }
+      }
     }
   ]
 }

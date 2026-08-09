@@ -1,5 +1,18 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.4.3 - TBD
+
+### Added
+
+- Encryption-descriptor `version` tests in the `encryption-descriptor-api`
+  suite: an integer `version` round-trips, a non-integer version is 400
+  `invalid-request-body`, an explicit `version: 1` on a formerly versionless
+  descriptor is accepted (absent means `1`), removing a set version is 409
+  `encryption-immutable` (or a no-op that preserves it), raising the version is
+  never an immutability conflict, and (optional tier) an unrecognized version of
+  a recognized scheme is rejected with `unsupported-encryption-scheme` or stored
+  opaquely verbatim.
+
 ## 0.4.2 - 2026-08-07
 
 ### Added
