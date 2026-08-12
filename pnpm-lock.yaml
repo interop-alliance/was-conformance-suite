@@ -29,6 +29,9 @@ importers:
       '@interop/http-signature-zcap-invoke':
         specifier: ^6.2.4
         version: 6.2.4
+      '@interop/x25519-key-agreement-key':
+        specifier: ^5.2.1
+        version: 5.2.1
       assert:
         specifier: ^2.1.0
         version: 2.1.0
@@ -40,8 +43,8 @@ importers:
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.7.0)
       '@interop/was-client':
-        specifier: ^0.23.0
-        version: 0.23.0(@interop/jsonld-signatures@11.8.3)
+        specifier: ^0.35.1
+        version: 0.35.1(@interop/jsonld-signatures@11.8.3)
       '@playwright/test':
         specifier: ^1.60.0
         version: 1.61.1
@@ -295,6 +298,10 @@ packages:
     resolution: {integrity: sha512-ceCNf8f7ktcMIyPILINzqrleejdzpIaFGoQKZYTWthIC0i1fxSBt5VHC7Sy8MmSomc3tPk2OMI7KqjnF3Ng/XQ==}
     engines: {node: '>=22.12'}
 
+  '@interop/http-client@1.0.5':
+    resolution: {integrity: sha512-t/zL0+mQOjNkzj6usOv6MCOvG/HVOH1GG8Dbp03ympkf4NVOaJavBBJZuE05Xi1Sp4izmjHydDwnJLlzkZpzXQ==}
+    engines: {node: '>=22.12'}
+
   '@interop/http-digest-header@3.0.0':
     resolution: {integrity: sha512-TImKkogQnjiQrqSQ/ZD8OZEGfB7sFy8qFl26mR5IAutzXi8n4vRkz7pUqGOjvpWRY5Xb9stHOqxV5kgKKjcG1g==}
     engines: {node: '>=24.0'}
@@ -328,12 +335,16 @@ packages:
     resolution: {integrity: sha512-O3bKm2V4SjDAOqgMKSUYF9b+HRK47e8Cy52I45Fs7MXcGSkT6nOrbhEHwwKGX+BH0WoaNSqsKVdyt03MvoPZgA==}
     engines: {node: '>=24.0'}
 
-  '@interop/storage-core@0.3.12':
-    resolution: {integrity: sha512-INgMphM5sEhrLonwrE1HZcvm+k+aKIQdwCi/hOuJfnylT5Qdfr0ovzY0ax8veEKqRKmi8k9lmlayTbr/D2q99A==}
+  '@interop/minimal-cipher@7.8.1':
+    resolution: {integrity: sha512-LvnfEO2D2HmVuZi0g17PWA2+P2ZsPPWAHetTZe24T5oRElPVb5G2RDrwpxX2ZMGTXhZWT0uxFt0ShgPFAjjY4g==}
+    engines: {node: '>=24.0'}
+
+  '@interop/storage-core@0.8.0':
+    resolution: {integrity: sha512-tOHdfZ3SeFmRNkxxw2ziKhqgfdXQKiN2McfTuLBSXfM1SozkT8fT21KuR/F6yv8FxZEweDq9vIbdIC9MaLmrAw==}
     engines: {node: '>=22.0'}
 
-  '@interop/was-client@0.23.0':
-    resolution: {integrity: sha512-XV+tgFvgBH0p+kFVT3r/3k32OuROMi5fbCPwt/9x1CYuWmseLMjv9TGvmsib0dwuB2gqHyJzW162MJBft6ZwdA==}
+  '@interop/was-client@0.35.1':
+    resolution: {integrity: sha512-NzwBY+EJ4YGP29++6/ieG9kPbrw1szDc30/uGnchUnPXJ21QSyLq7aBTX5F3VPnTl3ZSbp6KanIuvETyl77hZQ==}
     engines: {node: '>=24.0'}
 
   '@interop/x25519-key-agreement-key@5.2.1':
@@ -394,6 +405,10 @@ packages:
 
   '@noble/hashes@2.2.0':
     resolution: {integrity: sha512-IYqDGiTXab6FniAgnSdZwgWbomxpy9FtYvLKs7wCUs2a8RkITG+DFGO1DM9cr+E3/RgADRpFjrKVaJ1z6sjtEg==}
+    engines: {node: '>= 20.19.0'}
+
+  '@noble/hashes@2.3.0':
+    resolution: {integrity: sha512-oN+QwyX7VSHotibwubG3kpzbwKrfnyR6OOO+3Nk/53ADL7FmgHHz4TgrbaYKvvOw09u6QTx0oiH1cNCIOuN0CQ==}
     engines: {node: '>= 20.19.0'}
 
   '@oxc-project/types@0.139.0':
@@ -560,6 +575,9 @@ packages:
 
   '@scure/base@2.2.0':
     resolution: {integrity: sha512-b8XEupJibegiXV+tDUseI8oLQc8ei3d/4Jkb2RpbHh3MfE054ov3uIz2dhFkB3FI8iwYkEh0gGCApkrYggkPNg==}
+
+  '@scure/base@2.3.0':
+    resolution: {integrity: sha512-NsG6Y03tY6R5BUis4FdVtHVkur0U6FOzskgs9ZXNl78CUc9fkZ78HmENUle1nSOkCasDmbubmWD9qwB7mm4PZA==}
 
   '@sinclair/typebox@0.27.12':
     resolution: {integrity: sha512-hhyNJ+nbR6ZR7pToHvllEFun9TL0sbL+tk/ON75lo+Xas054uez98qRbsuNt7MBCyZKK4+8Yli/OAGZhmfBZ/g==}
@@ -2411,6 +2429,11 @@ snapshots:
       ky: 1.14.3
       undici: 7.28.0
 
+  '@interop/http-client@1.0.5':
+    dependencies:
+      ky: 1.14.3
+      undici: 7.28.0
+
   '@interop/http-digest-header@3.0.0': {}
 
   '@interop/http-signature-header@5.0.2': {}
@@ -2454,22 +2477,32 @@ snapshots:
       '@stablelib/chacha': 2.0.1
       '@stablelib/chacha20poly1305': 2.0.1
 
-  '@interop/storage-core@0.3.12':
+  '@interop/minimal-cipher@7.8.1':
+    dependencies:
+      '@interop/data-integrity-core': 8.4.0
+      '@interop/ecdsa-multikey': 2.3.3
+      '@noble/ciphers': 2.2.0
+      '@noble/curves': 2.2.0
+      '@scure/base': 2.2.0
+      '@stablelib/chacha': 2.0.1
+      '@stablelib/chacha20poly1305': 2.0.1
+
+  '@interop/storage-core@0.8.0':
     dependencies:
       '@interop/data-integrity-core': 8.4.0
 
-  '@interop/was-client@0.23.0(@interop/jsonld-signatures@11.8.3)':
+  '@interop/was-client@0.35.1(@interop/jsonld-signatures@11.8.3)':
     dependencies:
       '@interop/data-integrity-core': 8.4.0
       '@interop/ed25519-signature': 7.1.4(@interop/jsonld-signatures@11.8.3)
       '@interop/edv-client': 17.8.0
       '@interop/ezcap': 7.4.1
-      '@interop/http-client': 1.0.4
-      '@interop/minimal-cipher': 7.8.0
-      '@interop/storage-core': 0.3.12
+      '@interop/http-client': 1.0.5
+      '@interop/minimal-cipher': 7.8.1
+      '@interop/storage-core': 0.8.0
       '@interop/x25519-key-agreement-key': 5.2.1
-      '@noble/hashes': 2.2.0
-      '@scure/base': 2.2.0
+      '@noble/hashes': 2.3.0
+      '@scure/base': 2.3.0
       json-canonicalize: 2.0.0
     transitivePeerDependencies:
       - '@interop/jsonld-signatures'
@@ -2543,6 +2576,8 @@ snapshots:
   '@noble/ed25519@3.1.0': {}
 
   '@noble/hashes@2.2.0': {}
+
+  '@noble/hashes@2.3.0': {}
 
   '@oxc-project/types@0.139.0': {}
 
@@ -2670,6 +2705,8 @@ snapshots:
   '@rolldown/pluginutils@1.0.1': {}
 
   '@scure/base@2.2.0': {}
+
+  '@scure/base@2.3.0': {}
 
   '@sinclair/typebox@0.27.12': {}
 

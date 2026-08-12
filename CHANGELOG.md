@@ -1,5 +1,28 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.6.0 - TBD
+
+### Added
+
+- Codec-path tests in the `blinded-index-api` suite, grouped as `codec path` and
+  gated on the same `blinded-index-query` feature detection: an encrypted
+  Collection is provisioned through `@interop/was-client`
+  (`encryption: { scheme: 'edv' }`, a first key epoch with `blindedIndex: true`,
+  and a declared index), documents are written with `add()`, and the server
+  matches the client-computed tokens -- `find({ equals })` returns them
+  decrypted, `find({ has })` and `find({ count: true })` match on presence and
+  tally, and a write colliding on a `unique` declared attribute is refused with
+  409 `id-conflict` (surfaced as the client's `ConflictError`). The existing
+  tests seed hand-built envelopes, which cannot show that a real client's tokens
+  are the tokens this server matches.
+
+### Changed
+
+- `@interop/was-client` peer range raised to `>=0.35.0 <1.0.0` (the version that
+  ships the `/edv` blinded-index API the new tests import).
+- Added `@interop/x25519-key-agreement-key` as a dependency (the key-agreement
+  key the codec-path collection's epoch wraps to).
+
 ## 0.5.0 - 2026-08-12
 
 ### Added

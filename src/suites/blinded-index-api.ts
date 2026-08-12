@@ -19,12 +19,33 @@
  * server matches them opaquely, so no real crypto is exercised here. Signed
  * queries and writes use the raw `ZcapClient.request()` escape hatch, like the
  * sibling `changes` profile suite.
+ *
+ * The `codec path` group is the counterpart to that: instead of hand-built
+ * envelopes it drives `@interop/was-client`'s EDV codec -- a collection
+ * provisioned with a blinding key, an attribute declared searchable, documents
+ * written with `add()` and matched with `find()`. That is what proves the
+ * tokens a real client computes are the tokens this server matches, which
+ * hand-built fixtures cannot show.
  */
 import assert from '../harness/assert.js'
 import type { Suite } from '../harness/types.js'
 
+import { ConflictError, WasClient } from '@interop/was-client'
+import type { Collection, FindPage, Space } from '@interop/was-client'
+import {
+  createEdvEncryption,
+  ensureFirstEpoch,
+  ownerRecipient
+} from '@interop/was-client/edv'
+import type { IKeyAgreementKey } from '@interop/data-integrity-core'
+import { X25519KeyAgreementKey2020 } from '@interop/x25519-key-agreement-key'
+import { Ed25519VerificationKey } from '@interop/ed25519-verification-key'
+
 /** The (opaque) HMAC key id every seeded envelope indexes under. */
 const HMAC_ID = 'did:key:zHmacBlindedIndexKeyA'
+
+/** The label of the group whose fixtures the was-client codec writes. */
+const CODEC_GROUP = 'codec path'
 
 interface State {
   alice: any
@@ -32,6 +53,12 @@ interface State {
   advertised: boolean
   queryUrl: (collectionId: string) => string
   resourceUrl: (collectionId: string, resourceId: string) => string
+  /** Set by the `codec path` group setup, when the feature is advertised. */
+  codec?: {
+    space: Space
+    searchable: Collection
+    unique: Collection
+  }
 }
 
 /**
@@ -68,6 +95,50 @@ function envelope({
       ciphertext: 'Y2lwaGVydGV4dA',
       tag: 'dGFn'
     }
+  }
+}
+
+/**
+ * Builds an encryption-capable WAS client over a fresh Ed25519 signer, plus
+ * the X25519 key-agreement key the collection's first epoch (and its blinding
+ * key) wraps to. The suite's shared actors carry plaintext clients only, so the
+ * codec-path group needs its own identity and keystore.
+ *
+ * @param options {object}
+ * @param options.serverUrl {string}   the server under test
+ * @returns {Promise<{ was: WasClient, keyAgreementKey: IKeyAgreementKey }>}
+ */
+async function encryptedClient({ serverUrl }: { serverUrl: string }): Promise<{
+  was: WasClient
+  keyAgreementKey: IKeyAgreementKey
+}> {
+  const keyPair = await Ed25519VerificationKey.generate()
+  const did = `did:key:${keyPair.fingerprint()}`
+  keyPair.id = `${did}#${keyPair.fingerprint()}`
+  keyPair.controller = did
+
+  const kak = await X25519KeyAgreementKey2020.generate({ controller: did })
+  const keyResolver = async ({ id }: { id?: string }) => {
+    if (id !== kak.id) {
+      throw new Error(`Unknown key id "${id}".`)
+    }
+    return {
+      id: kak.id,
+      type: kak.type,
+      publicKeyMultibase: kak.publicKeyMultibase
+    }
+  }
+  const keyAgreementKey = kak as IKeyAgreementKey
+  const encryption = createEdvEncryption({
+    resolveKeys: async () => ({ keyAgreementKey, keyResolver })
+  })
+  return {
+    was: WasClient.fromSigner({
+      serverUrl,
+      signer: keyPair.signer(),
+      encryption
+    }),
+    keyAgreementKey
   }
 }
 
@@ -176,7 +247,7 @@ export const blindedIndexApi: Suite<State> = {
   },
 
   teardown: async (ctx, state) => {
-    const { alice } = state
+    const { alice, codec } = state
     try {
       await alice.rootClient.request({
         url: new URL(`/space/${alice.space1.id}`, ctx.serverUrl).toString(),
@@ -185,7 +256,87 @@ export const blindedIndexApi: Suite<State> = {
     } catch {
       /* best-effort cleanup */
     }
+    try {
+      await codec?.space.delete()
+    } catch {
+      /* best-effort cleanup */
+    }
   },
+
+  groups: [
+    {
+      name: CODEC_GROUP,
+      setup: async (ctx, state) => {
+        if (!state.advertised) {
+          return
+        }
+        // A Space of its own, controlled by the encrypting client's DID: the
+        // shared actors' clients hold no keys, so they cannot write here.
+        const { was, keyAgreementKey } = await encryptedClient({
+          serverUrl: ctx.serverUrl
+        })
+        const space = await ctx.provisionSpace({
+          was,
+          name: 'Blinded Codec Space'
+        })
+
+        /**
+         * Provisions an encrypted, searchable Collection and declares one
+         * attribute on it. The blinding key installs with epoch[0] or never,
+         * so `blindedIndex` is asked for at provisioning time.
+         *
+         * @param options {object}
+         * @param options.id {string}   the Collection id
+         * @param options.attribute {string}   the dotted attribute path
+         * @param [options.unique] {boolean}   claim the value exclusively
+         * @returns {Promise<Collection>}
+         */
+        async function searchableCollection({
+          id,
+          attribute,
+          unique
+        }: {
+          id: string
+          attribute: string
+          unique?: boolean
+        }): Promise<Collection> {
+          const declared = await space.createCollection({
+            id,
+            encryption: { scheme: 'edv' }
+          })
+          await ensureFirstEpoch({
+            collection: declared,
+            recipients: [ownerRecipient({ keyAgreementKey })],
+            blindedIndex: true
+          })
+          const collection = was.space(space.id).collection(id)
+          await collection.declareIndex({
+            attribute,
+            ...(unique && { unique })
+          })
+          return collection
+        }
+
+        const searchable = await searchableCollection({
+          id: 'codec-vault',
+          attribute: 'content.type'
+        })
+        // Two `note`s and one `task`: enough to tell a match from a non-match.
+        await searchable.add({ type: 'note', title: 'alpha' })
+        await searchable.add({ type: 'note', title: 'beta' })
+        await searchable.add({ type: 'task', title: 'gamma' })
+
+        const unique = await searchableCollection({
+          id: 'codec-vault-unique',
+          attribute: 'content.serial',
+          unique: true
+        })
+        await unique.add({ serial: 'serial-1', title: 'holder' })
+
+        state.codec = { space, searchable, unique }
+      }
+    }
+  ],
 
   tests: [
     {
@@ -548,6 +699,94 @@ export const blindedIndexApi: Suite<State> = {
           maskedError.data.type,
           'https://wallet.storage/spec#not-found'
         )
+      }
+    },
+    {
+      id: 'blinded.codec-equals-roundtrip',
+      name: 'codec-written documents match on equals and round-trip decrypted',
+      group: CODEC_GROUP,
+      specRefs: [
+        'https://wallet.storage/spec#query-profile-blinded-index',
+        'https://wallet.storage/spec#encryption-scheme-registry'
+      ],
+      run: async (ctx, state) => {
+        const { advertised, codec } = state
+        if (!advertised) {
+          ctx.skip('backend does not advertise blinded-index-query')
+        }
+        assert.ok(codec, 'expected the codec-path fixtures')
+        // The tokens are computed by the client's blinding key, so a match
+        // here is the end-to-end proof the two sides agree on the encoding.
+        const page = (await codec.searchable.find({
+          equals: { 'content.type': 'note' }
+        })) as FindPage
+        const titles = page.items
+          .map(item => (item.data as { title: string }).title)
+          .sort()
+        assert.deepEqual(titles, ['alpha', 'beta'])
+        assert.equal(page.hasMore, false)
+      }
+    },
+    {
+      id: 'blinded.codec-has-and-count',
+      name: 'codec-written documents match on has, and count returns just the tally',
+      group: CODEC_GROUP,
+      specRefs: ['https://wallet.storage/spec#query-profile-blinded-index'],
+      run: async (ctx, state) => {
+        const { advertised, codec } = state
+        if (!advertised) {
+          ctx.skip('backend does not advertise blinded-index-query')
+        }
+        assert.ok(codec, 'expected the codec-path fixtures')
+        // Every document carries the declared attribute, whatever its value.
+        const page = (await codec.searchable.find({
+          has: 'content.type'
+        })) as FindPage
+        assert.equal(page.items.length, 3)
+
+        const counted = await codec.searchable.find({
+          equals: { 'content.type': 'task' },
+          count: true
+        })
+        assert.deepEqual(counted, { count: 1 })
+      }
+    },
+    {
+      id: 'blinded.codec-unique-conflict',
+      name: 'a codec write colliding on a unique declared attribute is id-conflict (409)',
+      group: CODEC_GROUP,
+      specRefs: [
+        'https://wallet.storage/spec#unique-blinded-attributes',
+        'https://wallet.storage/spec#id-conflict'
+      ],
+      run: async (ctx, state) => {
+        const { advertised, codec } = state
+        if (!advertised) {
+          ctx.skip('backend does not advertise blinded-index-query')
+        }
+        assert.ok(codec, 'expected the codec-path fixtures')
+        // `content.serial` is declared unique, so the codec stamps its blinded
+        // entry with `unique: true` and a second claimant of the same value is
+        // refused -- the client surfacing the server's 409 as a ConflictError.
+        let conflictError: any
+        try {
+          await codec.unique.add({ serial: 'serial-1', title: 'claimant' })
+        } catch (err) {
+          conflictError = err
+        }
+        assert.ok(conflictError, 'expected the colliding write to be rejected')
+        assert.ok(
+          conflictError instanceof ConflictError,
+          `expected a ConflictError, got ${conflictError?.name}`
+        )
+        assert.equal(conflictError.status, 409)
+
+        // A different value under the same unique attribute still writes.
+        const { id } = await codec.unique.add({
+          serial: 'serial-2',
+          title: 'other'
+        })
+        assert.ok(id, 'expected the non-colliding write to succeed')
       }
     }
   ]
