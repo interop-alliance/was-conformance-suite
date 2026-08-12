@@ -1,5 +1,21 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.5.0 - TBD
+
+### Added
+
+- Collection Metadata (`GET`/`PUT /space/{spaceId}/{collectionId}/meta`) tests
+  in the `collection-api` suite, skipped as a group when a server answers 501
+  `unsupported-operation` (the endpoints are OPTIONAL): a signed read is 200
+  `application/json` while an anonymous one is 404 `application/problem+json`, a
+  write sets `custom` and returns an ETag that a read round-trips, a write with
+  no `custom` clears it (full replacement), server-managed top-level members in
+  the body are ignored (read-modify-write is safe), a write to a nonexistent
+  Collection is 404, a non-object `custom` is 400 `invalid-request-body`, a
+  stale `If-Match` is 412 `precondition-failed` while the current one succeeds,
+  the metadata ETag is independent of the Collection Description ETag, and
+  `meta` is a reserved Resource id (409 `reserved-id`).
+
 ## 0.4.3 - 2026-08-09
 
 ### Added
