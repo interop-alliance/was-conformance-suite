@@ -486,6 +486,46 @@ export const spacesApi: Suite<State> = {
       }
     },
     {
+      id: 'repository.create-controller-unsupported-did-method-400',
+      name: 'POST /spaces/ whose body controller is a DID of an unregistered method is rejected (400 invalid-request-body)',
+      group: 'Spaces Repository API',
+      specRefs: [
+        'https://wallet.storage/spec#space-controller-did-method-registry',
+        'https://wallet.storage/spec#create-space-errors',
+        'https://wallet.storage/spec#invalid-request-body'
+      ],
+      run: async (ctx, state) => {
+        const { createSpace, generateId } = ctx
+        const { alice } = state
+        // A syntactically valid DID whose method is not in the Space Controller
+        // DID Method Registry (did:key is REQUIRED, did:webvh OPTIONAL; nothing
+        // else is registered). A server refuses an unsupported method with
+        // invalid-request-body, as it does a non-DID controller -- distinct
+        // from controller-mismatch, which presumes a resolvable controller.
+        let status: number | undefined, problem: any
+        try {
+          const response = await createSpace({
+            spaceDescription: {
+              id: generateId(),
+              name: 'Space With An Unsupported DID Method Controller',
+              controller: 'did:web:example.com:alice'
+            },
+            rootClient: alice.rootClient
+          })
+          status = response.status
+          problem = response.data
+        } catch (err: any) {
+          status = err.response?.status
+          problem = err.data
+        }
+        assert.equal(status, 400)
+        assert.equal(
+          problem.type,
+          'https://wallet.storage/spec#invalid-request-body'
+        )
+      }
+    },
+    {
       id: 'repository.create-delegated-201',
       name: "[delegated] a provisioning app creates a Space on Alice's behalf via POST (201)",
       group: 'Spaces Repository API',
@@ -887,6 +927,81 @@ export const spacesApi: Suite<State> = {
           assert.equal(checkResponse.status, 200)
           assert.equal(checkResponse.data.controller, alice.did)
           assert.equal(checkResponse.data.name, 'Escalation Target Space')
+        } finally {
+          try {
+            await alice.rootClient.request({ url: spaceUrl, method: 'DELETE' })
+          } catch {
+            /* best-effort cleanup */
+          }
+        }
+      }
+    },
+    {
+      id: 'space.update-controller-unsupported-did-method-400',
+      name: "[root] a PUT changing 'controller' to a DID of an unregistered method yields invalid-request-body (400) and leaves the Space unchanged",
+      group: 'Space API',
+      specRefs: [
+        'https://wallet.storage/spec#space-controller-did-method-registry',
+        'https://wallet.storage/spec#setting-a-controller-to-optional-did-method',
+        'https://wallet.storage/spec#update-or-create-by-id-space-operation',
+        'https://wallet.storage/spec#invalid-request-body'
+      ],
+      run: async (ctx, state) => {
+        const { serverUrl, createSpace, generateId } = ctx
+        const { alice } = state
+        // The stored controller (Alice, a did:key) is authorized to update the
+        // Space, so authorization passes; the proposed controller is then
+        // refused on its DID method alone (did:web is not registered). The
+        // refusal is the same invalid-request-body a create gets, and the
+        // stored controller must be untouched -- an accepted-but-unresolvable
+        // controller would leave the Space with no party able to act on it.
+        const spaceId = generateId()
+        await createSpace({
+          spaceDescription: {
+            id: spaceId,
+            name: 'Promotion Target Space',
+            controller: alice.did
+          },
+          rootClient: alice.rootClient
+        })
+
+        const spaceUrl = new URL(`/space/${spaceId}`, serverUrl).toString()
+        try {
+          let expectedError: any
+          try {
+            await alice.rootClient.request({
+              url: spaceUrl,
+              method: 'PUT',
+              action: 'PUT',
+              json: {
+                id: spaceId,
+                name: 'Promotion Target Space',
+                controller: 'did:web:example.com:alice'
+              }
+            })
+          } catch (err) {
+            expectedError = err
+          }
+          assert.ok(
+            expectedError,
+            'expected the unsupported-method PUT to fail'
+          )
+          assert.equal(expectedError.response.status, 400)
+          assert.match(
+            expectedError.response.headers.get('content-type'),
+            /application\/problem\+json/
+          )
+          assert.equal(
+            expectedError.data.type,
+            'https://wallet.storage/spec#invalid-request-body'
+          )
+
+          const checkResponse = await alice.rootClient.request({
+            url: spaceUrl,
+            method: 'GET'
+          })
+          assert.equal(checkResponse.status, 200)
+          assert.equal(checkResponse.data.controller, alice.did)
         } finally {
           try {
             await alice.rootClient.request({ url: spaceUrl, method: 'DELETE' })

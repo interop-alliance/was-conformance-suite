@@ -1,5 +1,16 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.6.1 - TBD
+
+### Added
+
+- `repository.create-controller-unsupported-did-method-400` and
+  `space.update-controller-unsupported-did-method-400` in the `spaces-api`
+  suite: a `controller` that is a valid DID of a method not in the spec's Space
+  Controller DID Method Registry (`did:web`) is refused with 400
+  `invalid-request-body`, on create and on update by the stored controller, and
+  the update leaves the stored controller unchanged.
+
 ## 0.6.0 - 2026-08-12
 
 ### Added
