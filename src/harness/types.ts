@@ -13,6 +13,12 @@ import type { ISigner } from '@interop/data-integrity-core'
  */
 export interface Actor {
   did: string
+  /**
+   * The identity's own signer. `rootClient` and `was` are built from it; a
+   * suite needs it directly only to build a client of its own, e.g. one signing
+   * delegation proofs with a different cryptosuite.
+   */
+  signer: ISigner
   rootClient: ZcapClient
   was: WasClient
 }

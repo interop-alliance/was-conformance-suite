@@ -5,7 +5,7 @@ import { ZcapClient } from '@interop/ezcap'
 import { WasClient } from '@interop/was-client'
 import type { Space } from '@interop/was-client'
 import { decodeSecretKeySeed } from '@digitalcredentials/bnid'
-import { Ed25519Signature2020 } from '@interop/ed25519-signature'
+import { EddsaJcs2022 } from '@interop/ed25519-signature/eddsa-jcs-2022'
 import { Ed25519VerificationKey } from '@interop/ed25519-verification-key'
 import type { ISigner } from '@interop/data-integrity-core'
 import { v4 as uuidv4 } from 'uuid'
@@ -23,9 +23,21 @@ const secretKeySeeds = {
   bobDelegatedApp: 'z1AfgF2HQvQaaAhod3KEYUHwY5epGtP5QmbEMKtMFf8XcYk'
 }
 
+/**
+ * The suite's ZcapClient: delegation proofs are signed with `eddsa-jcs-2022`,
+ * which canonicalizes with JCS and so needs no JSON-LD document loader at
+ * signing time. That is what WAS clients now emit, so the required tests
+ * exercise the suite a server actually meets. `Ed25519Signature2020` is not
+ * gone from the suite: the optional `delegation-cryptosuites` suite asserts a
+ * server still accepts it, and accepts a chain that mixes the two.
+ *
+ * @param options {object}
+ * @param options.signer {ISigner}
+ * @returns {ZcapClient}
+ */
 export function zcapClient({ signer }: { signer: ISigner }): ZcapClient {
   return new ZcapClient({
-    SuiteClass: Ed25519Signature2020,
+    SuiteClass: EddsaJcs2022,
     invocationSigner: signer,
     delegationSigner: signer
   })
@@ -80,6 +92,7 @@ export async function buildZcapClients({
   return {
     alice: {
       did: aliceRootDid,
+      signer: aliceSigner,
       // Low-level ZcapClient -- kept for raw request()/delegate() calls.
       rootClient: zcapClient({ signer: aliceSigner }),
       // High-level WAS client wrapping the same signer.
@@ -91,6 +104,7 @@ export async function buildZcapClients({
     },
     bob: {
       did: bobRootDid,
+      signer: bobSigner,
       rootClient: zcapClient({ signer: bobSigner }),
       was: wasClient({ serverUrl, signer: bobSigner })
     }

@@ -1,5 +1,33 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.7.0 - TBD
+
+### Changed
+
+- The suite signs its delegation proofs with `eddsa-jcs-2022` instead of
+  `Ed25519Signature2020`. That is what current WAS clients emit, so the required
+  tests now exercise the cryptosuite a server actually meets. A server that
+  verifies only `Ed25519Signature2020` fails the delegated tests until it
+  accepts both; `was-teaching-server` does so from 0.23.0.
+
+### Added
+
+- A `delegation-cryptosuites` suite: a server accepts a delegation proof signed
+  with `eddsa-jcs-2022`, one signed with `Ed25519Signature2020`, and a chain
+  whose links mix the two -- rather than the run silently tracking whichever
+  suite it happens to send. Only the `eddsa-jcs-2022` test is required, matching
+  what the rest of the suite signs with. The two tests involving
+  `Ed25519Signature2020` are optional: a server may reasonably have moved past
+  it, and the spec's authorization profile names no cryptosuite either way.
+- `Actor.signer` on the test identities, so a suite can build a client of its
+  own -- one signing with a different cryptosuite, for instance -- without
+  reaching into `rootClient`.
+
+### Fixed
+
+- The README's suite-id table lists all 20 suites; it had been missing seven
+  added since it was written.
+
 ## 0.6.1 - 2026-08-20
 
 ### Added

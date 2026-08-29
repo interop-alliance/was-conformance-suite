@@ -19,11 +19,11 @@ test('setup form renders the suite registry and prefills ?server=', async ({
     'http://localhost:3002'
   )
   await expect(page.getByTestId('token')).toHaveAttribute('type', 'password')
-  // Full registry: 19 suites, all selected by default.
+  // Full registry: 20 suites, all selected by default.
   const checkboxes = page
     .getByTestId('suite-select')
     .locator('input[type="checkbox"]')
-  await expect(checkboxes).toHaveCount(19)
+  await expect(checkboxes).toHaveCount(20)
   for (const box of await checkboxes.all()) {
     await expect(box).toBeChecked()
   }

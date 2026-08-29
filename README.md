@@ -121,20 +121,28 @@ Options:
 
 The available suite ids (for `--suite`) are:
 
-| id                          | tests                                  |
-| --------------------------- | -------------------------------------- |
-| `changes-query-api`         | Collection changes query profile       |
-| `client-backends`           | WasClient -- BYOS backend registration |
-| `client-delegation`         | WasClient -- Delegation                |
-| `client-export-import`      | WasClient -- Export / Import           |
-| `client-resources`          | WasClient -- Resources                 |
-| `client-spaces`             | WasClient -- Spaces & Collections      |
-| `collection-api`            | Collections API                        |
-| `encryption-descriptor-api` | Encryption descriptor API              |
-| `policy-api`                | Access-control policy API              |
-| `resource-api`              | Resource API                           |
-| `server`                    | Server                                 |
-| `spaces-api`                | Spaces                                 |
+| id                          | tests                                                   |
+| --------------------------- | ------------------------------------------------------- |
+| `authz-ordering-api`        | Authorization ordering (no-leak negatives)              |
+| `blinded-index-api`         | Blinded-index query profile                             |
+| `changes-query-api`         | Collection changes query profile                        |
+| `chunks-api`                | Chunked Resources API                                   |
+| `client-backends`           | WasClient -- BYOS backend registration                  |
+| `client-delegation`         | WasClient -- Delegation                                 |
+| `client-export-import`      | WasClient -- Export / Import                            |
+| `client-resources`          | WasClient -- Resources                                  |
+| `client-spaces`             | WasClient -- Spaces & Collections                       |
+| `collection-api`            | Collections API                                         |
+| `conditional-requests-api`  | Conditional requests & caching                          |
+| `delegation-cryptosuites`   | Delegation-proof cryptosuites                           |
+| `digest-api`                | Request body integrity (Digest) negatives               |
+| `encryption-descriptor-api` | Encryption descriptor API                               |
+| `invocation-target-api`     | Capability invocationTarget binding                     |
+| `policy-api`                | Access-control policy API                               |
+| `resource-api`              | Resource API                                            |
+| `server`                    | Server                                                  |
+| `spaces-api`                | Spaces                                                  |
+| `write-validation-api`      | Write-validation negatives (reserved ids, Content-Type) |
 
 #### Environment-variable fallbacks
 
