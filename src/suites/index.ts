@@ -18,6 +18,7 @@ import { delegationCryptosuitesApi } from './delegation-cryptosuites-api.js'
 import { digestApi } from './digest-api.js'
 import { encryptionDescriptorApi } from './encryption-descriptor-api.js'
 import { invocationTargetApi } from './invocation-target-api.js'
+import { plaintextDeclarationApi } from './plaintext-declaration-api.js'
 import { policyApi } from './policy-api.js'
 import { resourceApi } from './resource-api.js'
 import { server } from './server.js'
@@ -44,6 +45,7 @@ export const suites: Array<Suite<any>> = [
   digestApi,
   encryptionDescriptorApi,
   invocationTargetApi,
+  plaintextDeclarationApi,
   policyApi,
   resourceApi,
   server,
@@ -67,6 +69,7 @@ export {
   digestApi,
   encryptionDescriptorApi,
   invocationTargetApi,
+  plaintextDeclarationApi,
   policyApi,
   resourceApi,
   server,

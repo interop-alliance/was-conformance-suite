@@ -1,5 +1,18 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.8.0 - TBD
+
+### Added
+
+- A `plaintext-declaration-api` suite for the Collection `plaintext` member and
+  its `indexes` declaration: `plaintext.indexes` persists and echoes on POST and
+  PUT create, `plaintext` and `encryption` both present is 400 on create and on
+  update in either direction (an empty `plaintext` still excludes), malformed
+  `plaintext` is 400, `plaintext` is added, changed, and emptied with `{}` on an
+  existing Collection, and a `unique` index conflict is 409 at write time and
+  when promoting an attribute to unique over colliding Resources. The suite is
+  optional until the spec text for `plaintext` lands.
+
 ## 0.7.0 - 2026-08-29
 
 ### Changed

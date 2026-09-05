@@ -23,7 +23,7 @@ test('suite registry loads and context builds in the browser', async ({
   })
   // The total test count is deliberately not asserted: it moves with every
   // added test, and breaking this smoke test says nothing about browser compat.
-  expect(result.suiteIds).toHaveLength(20)
+  expect(result.suiteIds).toHaveLength(21)
   expect(result.suiteIds).toContain('spaces-api')
   // Deterministic seed: the did:key is stable across environments.
   expect(result.aliceDid).toMatch(/^did:key:z6Mk/)

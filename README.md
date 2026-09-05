@@ -138,6 +138,7 @@ The available suite ids (for `--suite`) are:
 | `digest-api`                | Request body integrity (Digest) negatives               |
 | `encryption-descriptor-api` | Encryption descriptor API                               |
 | `invocation-target-api`     | Capability invocationTarget binding                     |
+| `plaintext-declaration-api` | Plaintext declaration API                               |
 | `policy-api`                | Access-control policy API                               |
 | `resource-api`              | Resource API                                            |
 | `server`                    | Server                                                  |
