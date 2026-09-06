@@ -1,5 +1,16 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.9.0 - TBD
+
+### Added
+
+- `encryption-descriptor-api` covers the descriptor's `hmac` blinding-key
+  member: it persists and echoes verbatim, a malformed member (missing `id` or
+  `type`, empty `recipients`, bad entry shape) is 400 `invalid-request-body`,
+  changing its `id` or removing it on update is 409 `encryption-immutable`, and
+  changing its `recipients` or introducing it on a descriptor that lacks it is
+  accepted.
+
 ## 0.8.0 - 2026-09-05
 
 ### Added

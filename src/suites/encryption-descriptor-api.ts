@@ -21,6 +21,31 @@ const edvDocument = {
   jwe: { protected: 'eyJhbGciOiJkaXI', ciphertext: 'c1phertext' }
 }
 
+/**
+ * A descriptor recipient entry (the JWE recipients-entry shape an epoch and
+ * the blinding-key `hmac` member share).
+ */
+function recipient(kid: string): object {
+  return {
+    header: { kid, alg: 'ECDH-ES+A256KW' },
+    encrypted_key: `wrapped-${kid}`
+  }
+}
+
+/**
+ * A valid `edv` descriptor carrying a blinding-key `hmac` member.
+ */
+function hmacDescriptor(): any {
+  return {
+    scheme: 'edv',
+    hmac: {
+      id: 'urn:uuid:blinding-key-1',
+      type: 'Sha256HmacKey2019',
+      recipients: [recipient('did:key:zApp1#ka')]
+    }
+  }
+}
+
 interface State {
   alice: any
   bob: any
@@ -717,6 +742,256 @@ export const encryptionDescriptorApi: Suite<State> = {
           })
           assert.equal(read.data.encryption.version, 99)
         }
+      }
+    },
+    {
+      id: 'encryption.hmac-persist-echo',
+      name: '[root] persists and echoes the blinding-key hmac member verbatim',
+      specRefs: [
+        'https://wallet.storage/spec#blinding-key-member',
+        'https://wallet.storage/spec#collection-data-model'
+      ],
+      run: async (ctx, state) => {
+        const { serverUrl } = ctx
+        const { alice, createCollection } = state
+        const response = await createCollection({
+          id: 'hmac-vault',
+          encryption: hmacDescriptor()
+        })
+        assert.equal(response.status, 201)
+        const read = await alice.rootClient.request({
+          url: new URL(
+            `/space/${alice.space1.id}/hmac-vault`,
+            serverUrl
+          ).toString(),
+          method: 'GET'
+        })
+        assert.deepStrictEqual(read.data.encryption, hmacDescriptor())
+      }
+    },
+    {
+      id: 'encryption.hmac-malformed-400',
+      name: '[root] rejects a malformed hmac member (400 invalid-request-body)',
+      specRefs: [
+        'https://wallet.storage/spec#key-epoch-server-validation',
+        'https://wallet.storage/spec#invalid-request-body'
+      ],
+      run: async (ctx, state) => {
+        const { createCollection } = state
+        // Each case violates one rule of the hmac shape: a non-empty string
+        // `id` and `type`, a non-empty `recipients` array, and the epoch
+        // recipients-entry shape for every entry.
+        const cases: [string, object][] = [
+          [
+            'missing-id',
+            { type: 'Sha256HmacKey2019', recipients: [recipient('k')] }
+          ],
+          ['missing-type', { id: 'urn:k', recipients: [recipient('k')] }],
+          [
+            'empty-recipients',
+            { id: 'urn:k', type: 'Sha256HmacKey2019', recipients: [] }
+          ],
+          [
+            'bad-recipient',
+            { id: 'urn:k', type: 'Sha256HmacKey2019', recipients: [{ foo: 1 }] }
+          ]
+        ]
+        for (const [label, hmac] of cases) {
+          let expectedError: any
+          try {
+            await createCollection({
+              id: `hmac-${label}`,
+              encryption: { scheme: 'edv', hmac }
+            })
+          } catch (err) {
+            expectedError = err
+          }
+          assert.ok(expectedError, `expected hmac with ${label} to be rejected`)
+          assert.equal(expectedError.response.status, 400, label)
+          assert.equal(
+            expectedError.data.type,
+            'https://wallet.storage/spec#invalid-request-body',
+            label
+          )
+        }
+      }
+    },
+    {
+      id: 'encryption.hmac-id-change-immutable',
+      name: '[root] an update cannot change the hmac id (409 encryption-immutable)',
+      specRefs: [
+        'https://wallet.storage/spec#key-epoch-server-validation',
+        'https://wallet.storage/spec#encryption-immutable'
+      ],
+      run: async (ctx, state) => {
+        const { serverUrl } = ctx
+        const { alice, createCollection } = state
+        const created = await createCollection({
+          id: 'hmac-id-locked',
+          encryption: hmacDescriptor()
+        })
+        assert.equal(created.status, 201)
+        const changed = hmacDescriptor()
+        changed.hmac.id = 'urn:uuid:blinding-key-2'
+        let expectedError: any
+        try {
+          await alice.rootClient.request({
+            url: new URL(
+              `/space/${alice.space1.id}/hmac-id-locked`,
+              serverUrl
+            ).toString(),
+            method: 'PUT',
+            action: 'PUT',
+            json: { id: 'hmac-id-locked', encryption: changed }
+          })
+        } catch (err) {
+          expectedError = err
+        }
+        assert.ok(expectedError, 'expected the hmac id change to be rejected')
+        assert.equal(expectedError.response.status, 409)
+        assert.equal(
+          expectedError.data.type,
+          'https://wallet.storage/spec#encryption-immutable'
+        )
+        const read = await alice.rootClient.request({
+          url: new URL(
+            `/space/${alice.space1.id}/hmac-id-locked`,
+            serverUrl
+          ).toString(),
+          method: 'GET'
+        })
+        assert.deepStrictEqual(read.data.encryption, hmacDescriptor())
+      }
+    },
+    {
+      id: 'encryption.hmac-remove-immutable',
+      name: '[root] an update cannot remove the hmac member (409 encryption-immutable)',
+      specRefs: [
+        'https://wallet.storage/spec#key-epoch-server-validation',
+        'https://wallet.storage/spec#encryption-immutable'
+      ],
+      run: async (ctx, state) => {
+        const { serverUrl } = ctx
+        const { alice, createCollection } = state
+        const created = await createCollection({
+          id: 'hmac-remove-locked',
+          encryption: hmacDescriptor()
+        })
+        assert.equal(created.status, 201)
+        let expectedError: any
+        try {
+          await alice.rootClient.request({
+            url: new URL(
+              `/space/${alice.space1.id}/hmac-remove-locked`,
+              serverUrl
+            ).toString(),
+            method: 'PUT',
+            action: 'PUT',
+            json: { id: 'hmac-remove-locked', encryption: { scheme: 'edv' } }
+          })
+        } catch (err) {
+          expectedError = err
+        }
+        assert.ok(expectedError, 'expected the hmac removal to be rejected')
+        assert.equal(expectedError.response.status, 409)
+        assert.equal(
+          expectedError.data.type,
+          'https://wallet.storage/spec#encryption-immutable'
+        )
+        const read = await alice.rootClient.request({
+          url: new URL(
+            `/space/${alice.space1.id}/hmac-remove-locked`,
+            serverUrl
+          ).toString(),
+          method: 'GET'
+        })
+        assert.deepStrictEqual(read.data.encryption, hmacDescriptor())
+      }
+    },
+    {
+      id: 'encryption.hmac-recipients-change-accepted',
+      name: '[root] an update may change the hmac recipients',
+      specRefs: [
+        'https://wallet.storage/spec#key-epoch-server-validation',
+        'https://wallet.storage/spec#blinding-key-member'
+      ],
+      run: async (ctx, state) => {
+        const { serverUrl } = ctx
+        const { alice, createCollection } = state
+        const created = await createCollection({
+          id: 'hmac-rewrap',
+          encryption: hmacDescriptor()
+        })
+        assert.equal(created.status, 201)
+        // Adding a reader wraps the blinding key to it; the key itself (its
+        // `id` and `type`) is unchanged.
+        const rewrapped = hmacDescriptor()
+        rewrapped.hmac.recipients = [
+          recipient('did:key:zApp1#ka'),
+          recipient('did:key:zApp3#ka')
+        ]
+        const response = await alice.rootClient.request({
+          url: new URL(
+            `/space/${alice.space1.id}/hmac-rewrap`,
+            serverUrl
+          ).toString(),
+          method: 'PUT',
+          action: 'PUT',
+          json: { id: 'hmac-rewrap', encryption: rewrapped }
+        })
+        assert.ok(
+          response.status >= 200 && response.status < 300,
+          `expected the recipients change to be accepted, got ${response.status}`
+        )
+        const read = await alice.rootClient.request({
+          url: new URL(
+            `/space/${alice.space1.id}/hmac-rewrap`,
+            serverUrl
+          ).toString(),
+          method: 'GET'
+        })
+        assert.deepStrictEqual(read.data.encryption, rewrapped)
+      }
+    },
+    {
+      id: 'encryption.hmac-late-introduction-accepted',
+      name: '[root] an update may introduce hmac on a descriptor that lacks it',
+      specRefs: [
+        'https://wallet.storage/spec#key-epoch-server-validation',
+        'https://wallet.storage/spec#blinding-key-member'
+      ],
+      run: async (ctx, state) => {
+        const { serverUrl } = ctx
+        const { alice, createCollection } = state
+        // Whether a client may install the key after provisioning is a
+        // client-profile rule; the server treats late introduction as a first
+        // declaration and accepts it.
+        const created = await createCollection({
+          id: 'hmac-late',
+          encryption: { scheme: 'edv' }
+        })
+        assert.equal(created.status, 201)
+        const response = await alice.rootClient.request({
+          url: new URL(
+            `/space/${alice.space1.id}/hmac-late`,
+            serverUrl
+          ).toString(),
+          method: 'PUT',
+          action: 'PUT',
+          json: { id: 'hmac-late', encryption: hmacDescriptor() }
+        })
+        assert.ok(
+          response.status >= 200 && response.status < 300,
+          `expected the late hmac introduction to be accepted, got ${response.status}`
+        )
+        const read = await alice.rootClient.request({
+          url: new URL(
+            `/space/${alice.space1.id}/hmac-late`,
+            serverUrl
+          ).toString(),
+          method: 'GET'
+        })
+        assert.deepStrictEqual(read.data.encryption, hmacDescriptor())
       }
     }
   ]
