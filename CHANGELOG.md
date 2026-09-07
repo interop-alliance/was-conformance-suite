@@ -1,5 +1,29 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.11.0 - TBD
+
+### Added
+
+- A `governed-log-api` suite for a Collection's governing history log, the
+  `.../meta/log` sub-resource, gated on a backend advertising
+  `governed-history-logs`: a guarded create (`If-None-Match: *`) governs the
+  Collection and its served `encryption` member equals the log head's `state`
+  plus `history: { method, resource }`; the log reads back verbatim as
+  `text/jsonl` with its `ETag`; an `If-Match` append lands and bumps both the
+  log and Description `ETag`s while a stale one is 412; a direct `encryption`
+  write on a governed Collection is 409 `encryption-history-log-governed`; an
+  append that drops an epoch is 400 and leaves the log unchanged; a
+  line-contract break is 400 `invalid-request-body`; governing an
+  already-described Collection is 409 `encryption-immutable`; the log is absent
+  from the listing, exempt from the envelope rule, untouched by a `PUT /meta`,
+  readable under a capability on the Collection URL, masked as 404 for another
+  controller, and removed with the Collection.
+
+### Fixed
+
+- The optional backend-description cases in `client-spaces` pin the reference
+  server's current `features` list, which now ends in `governed-history-logs`.
+
 ## 0.10.0 - 2026-09-07
 
 ### Added

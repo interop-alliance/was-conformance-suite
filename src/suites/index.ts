@@ -17,6 +17,7 @@ import { conditionalRequestsApi } from './conditional-requests-api.js'
 import { delegationCryptosuitesApi } from './delegation-cryptosuites-api.js'
 import { digestApi } from './digest-api.js'
 import { encryptionDescriptorApi } from './encryption-descriptor-api.js'
+import { governedLogApi } from './governed-log-api.js'
 import { invocationTargetApi } from './invocation-target-api.js'
 import { plaintextDeclarationApi } from './plaintext-declaration-api.js'
 import { policyApi } from './policy-api.js'
@@ -44,6 +45,7 @@ export const suites: Array<Suite<any>> = [
   delegationCryptosuitesApi,
   digestApi,
   encryptionDescriptorApi,
+  governedLogApi,
   invocationTargetApi,
   plaintextDeclarationApi,
   policyApi,
@@ -68,6 +70,7 @@ export {
   delegationCryptosuitesApi,
   digestApi,
   encryptionDescriptorApi,
+  governedLogApi,
   invocationTargetApi,
   plaintextDeclarationApi,
   policyApi,

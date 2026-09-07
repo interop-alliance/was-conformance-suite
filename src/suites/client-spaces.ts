@@ -240,7 +240,8 @@ export const clientSpaces: Suite<State> = {
             'blinded-index-query',
             'equality-query',
             'key-epochs',
-            'chunked-streams'
+            'chunked-streams',
+            'governed-history-logs'
           ]
         })
       }
@@ -319,7 +320,8 @@ export const clientSpaces: Suite<State> = {
             'blinded-index-query',
             'equality-query',
             'key-epochs',
-            'chunked-streams'
+            'chunked-streams',
+            'governed-history-logs'
           ]
         })
       }

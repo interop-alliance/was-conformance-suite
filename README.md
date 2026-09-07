@@ -137,6 +137,7 @@ The available suite ids (for `--suite`) are:
 | `delegation-cryptosuites`   | Delegation-proof cryptosuites                           |
 | `digest-api`                | Request body integrity (Digest) negatives               |
 | `encryption-descriptor-api` | Encryption descriptor API                               |
+| `governed-log-api`          | Governing history log API                               |
 | `invocation-target-api`     | Capability invocationTarget binding                     |
 | `plaintext-declaration-api` | Plaintext declaration API                               |
 | `policy-api`                | Access-control policy API                               |
