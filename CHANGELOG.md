@@ -1,5 +1,16 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.10.0 - TBD
+
+### Added
+
+- `conditional-requests-api` gains optional-tier conditional-read cases (spec
+  "Caching"): a GET or HEAD with an `If-None-Match` matching the current `ETag`
+  is 304 with the `ETag` and no body while a stale validator is 200, a `W/`
+  validator, a list, and `*` all match (weak comparison), another controller's
+  conditional GET is the 404 mask rather than a 304, and a POST response carries
+  `Cache-Control: no-store`.
+
 ## 0.9.0 - 2026-09-05
 
 ### Added

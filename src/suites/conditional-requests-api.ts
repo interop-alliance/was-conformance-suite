@@ -70,33 +70,43 @@ function assertNotFoundMask(expectedError: any): void {
 }
 
 /**
- * Signs and sends a bodyless root HEAD invocation via raw `fetch`, returning
- * the response so headers (the `ETag`) can be read. The low-level primitive is
- * used because the high-level client parses the response body as JSON, which a
- * bodyless HEAD 200 has none of.
+ * Signs and sends a bodyless root read invocation (GET or HEAD) via raw
+ * `fetch`, optionally carrying an `If-None-Match` validator, and returns the
+ * response so its status and headers (the `ETag`) can be read. The low-level
+ * primitive is used because the high-level client parses a 200 body as JSON
+ * (a bodyless HEAD has none) and rejects a 304 as an error.
  *
  * @param options {object}
- * @param options.url {string}   the Resource URL to HEAD
+ * @param options.url {string}   the URL to read
+ * @param options.method {'GET' | 'HEAD'}
  * @param options.invocationSigner {ISigner}   the caller's signer
+ * @param [options.ifNoneMatch] {string}   an `If-None-Match` header value
  * @returns {Promise<Response>}
  */
-async function headResource({
+async function readResource({
   url,
-  invocationSigner
+  method,
+  invocationSigner,
+  ifNoneMatch
 }: {
   url: string
+  method: 'GET' | 'HEAD'
   invocationSigner: ISigner
+  ifNoneMatch?: string
 }): Promise<Response> {
   const signatureHeaders = await signCapabilityInvocation({
     url,
-    method: 'HEAD',
+    method,
     headers: { date: new Date().toUTCString() },
     invocationSigner,
-    capabilityAction: 'HEAD'
+    capabilityAction: method
   })
   return fetch(url, {
-    method: 'HEAD',
-    headers: signatureHeaders as Record<string, string>
+    method,
+    headers: {
+      ...(signatureHeaders as Record<string, string>),
+      ...(ifNoneMatch !== undefined && { 'if-none-match': ifNoneMatch })
+    }
   })
 }
 
@@ -217,13 +227,14 @@ export const conditionalRequestsApi: Suite<State> = {
           json: { name: 'v1' }
         })
         const staleEtag = created.headers.get('etag')
-        assert.equal(staleEtag, '"1"')
-        await alice.rootClient.request({
+        assert.match(staleEtag, /^"[^"]+"$/, 'expected a quoted ETag validator')
+        const secondWrite = await alice.rootClient.request({
           url: resourceUrl,
           method: 'PUT',
           action: 'PUT',
           json: { name: 'v2' }
         })
+        const currentEtag = secondWrite.headers.get('etag')
 
         // A PUT carrying the stale validator MUST NOT write and MUST 412.
         let expectedError: any
@@ -247,7 +258,7 @@ export const conditionalRequestsApi: Suite<State> = {
         })
         assert.equal(check.status, 200)
         assert.equal(check.data.name, 'v2')
-        assert.equal(check.headers.get('etag'), '"2"')
+        assert.equal(check.headers.get('etag'), currentEtag)
       }
     },
     {
@@ -317,7 +328,11 @@ export const conditionalRequestsApi: Suite<State> = {
           json: { name: 'v1' }
         })
         const currentEtag = created.headers.get('etag')
-        assert.equal(currentEtag, '"1"')
+        assert.match(
+          currentEtag,
+          /^"[^"]+"$/,
+          'expected a quoted ETag validator'
+        )
 
         // The matching precondition is satisfied: the write proceeds and the
         // strong validator advances.
@@ -329,7 +344,7 @@ export const conditionalRequestsApi: Suite<State> = {
           headers: { 'if-match': currentEtag }
         })
         assert.equal(updated.status, 204)
-        assert.equal(updated.headers.get('etag'), '"2"')
+        assert.notEqual(updated.headers.get('etag'), currentEtag)
 
         const check = await alice.rootClient.request({
           url: resourceUrl,
@@ -360,7 +375,11 @@ export const conditionalRequestsApi: Suite<State> = {
           headers: { 'if-none-match': '*' }
         })
         assert.equal(created.status, 204)
-        assert.equal(created.headers.get('etag'), '"1"')
+        assert.match(
+          created.headers.get('etag'),
+          /^"[^"]+"$/,
+          'expected a quoted ETag validator'
+        )
 
         const check = await alice.rootClient.request({
           url: resourceUrl,
@@ -486,8 +505,9 @@ export const conditionalRequestsApi: Suite<State> = {
           action: 'PUT',
           json: { name: 'v1' }
         })
-        const first = await headResource({
+        const first = await readResource({
           url: resourceUrl,
+          method: 'HEAD',
           invocationSigner: alice.rootClient.invocationSigner
         })
         assert.equal(first.status, 200)
@@ -500,8 +520,9 @@ export const conditionalRequestsApi: Suite<State> = {
           action: 'PUT',
           json: { name: 'v2' }
         })
-        const second = await headResource({
+        const second = await readResource({
           url: resourceUrl,
+          method: 'HEAD',
           invocationSigner: alice.rootClient.invocationSigner
         })
         assert.equal(second.status, 200)
@@ -509,6 +530,194 @@ export const conditionalRequestsApi: Suite<State> = {
         assert.ok(secondEtag, 'expected HEAD to carry an ETag')
 
         assert.notEqual(secondEtag, firstEtag)
+      }
+    },
+    {
+      id: 'conditional.get-if-none-match-304',
+      name:
+        '[root] GET with an If-None-Match matching the current ETag is 304 ' +
+        'Not Modified with the ETag and no body; a stale validator is 200',
+      optional: true,
+      specRefs: ['https://wallet.storage/spec#caching'],
+      run: async (ctx, state) => {
+        const { alice, collectionUrl } = state
+        const resourceUrl = `${collectionUrl}get-304`
+        const invocationSigner = alice.rootClient.invocationSigner
+
+        await alice.rootClient.request({
+          url: resourceUrl,
+          method: 'PUT',
+          action: 'PUT',
+          json: { name: 'v1' }
+        })
+        const first = await readResource({
+          url: resourceUrl,
+          method: 'GET',
+          invocationSigner
+        })
+        assert.equal(first.status, 200)
+        const etag = first.headers.get('etag')
+        assert.ok(etag, 'expected GET to carry an ETag')
+
+        const unchanged = await readResource({
+          url: resourceUrl,
+          method: 'GET',
+          invocationSigner,
+          ifNoneMatch: etag
+        })
+        assert.equal(unchanged.status, 304)
+        assert.equal(unchanged.headers.get('etag'), etag)
+        assert.equal(await unchanged.text(), '')
+
+        // The content changes, so the held validator goes stale and the full
+        // representation is served with the new ETag.
+        await alice.rootClient.request({
+          url: resourceUrl,
+          method: 'PUT',
+          action: 'PUT',
+          json: { name: 'v2' }
+        })
+        const stale = await readResource({
+          url: resourceUrl,
+          method: 'GET',
+          invocationSigner,
+          ifNoneMatch: etag
+        })
+        assert.equal(stale.status, 200)
+        assert.notEqual(stale.headers.get('etag'), etag)
+        const body = await stale.json()
+        assert.equal(body.name, 'v2')
+      }
+    },
+    {
+      id: 'conditional.head-if-none-match-304',
+      name: '[root] HEAD with an If-None-Match matching the current ETag is 304',
+      optional: true,
+      specRefs: ['https://wallet.storage/spec#caching'],
+      run: async (ctx, state) => {
+        const { alice, collectionUrl } = state
+        const resourceUrl = `${collectionUrl}head-304`
+        const invocationSigner = alice.rootClient.invocationSigner
+
+        await alice.rootClient.request({
+          url: resourceUrl,
+          method: 'PUT',
+          action: 'PUT',
+          json: { name: 'v1' }
+        })
+        const first = await readResource({
+          url: resourceUrl,
+          method: 'HEAD',
+          invocationSigner
+        })
+        const etag = first.headers.get('etag')
+        assert.ok(etag, 'expected HEAD to carry an ETag')
+
+        const unchanged = await readResource({
+          url: resourceUrl,
+          method: 'HEAD',
+          invocationSigner,
+          ifNoneMatch: etag
+        })
+        assert.equal(unchanged.status, 304)
+        assert.equal(unchanged.headers.get('etag'), etag)
+      }
+    },
+    {
+      id: 'conditional.get-if-none-match-weak-list-any',
+      name:
+        '[root] If-None-Match uses weak comparison: a W/ validator, a list ' +
+        'containing the ETag, and `*` are all 304',
+      optional: true,
+      specRefs: ['https://wallet.storage/spec#caching'],
+      run: async (ctx, state) => {
+        const { alice, collectionUrl } = state
+        const resourceUrl = `${collectionUrl}get-304-forms`
+        const invocationSigner = alice.rootClient.invocationSigner
+
+        await alice.rootClient.request({
+          url: resourceUrl,
+          method: 'PUT',
+          action: 'PUT',
+          json: { name: 'v1' }
+        })
+        const first = await readResource({
+          url: resourceUrl,
+          method: 'GET',
+          invocationSigner
+        })
+        const etag = first.headers.get('etag')
+        assert.ok(etag, 'expected GET to carry an ETag')
+
+        for (const ifNoneMatch of [`W/${etag}`, `"stale", ${etag}`, '*']) {
+          const response = await readResource({
+            url: resourceUrl,
+            method: 'GET',
+            invocationSigner,
+            ifNoneMatch
+          })
+          assert.equal(
+            response.status,
+            304,
+            `expected 304 for If-None-Match: ${ifNoneMatch}`
+          )
+        }
+      }
+    },
+    {
+      id: 'conditional.under-authorized-conditional-get-masked',
+      name:
+        "[root] another controller's conditional GET is the 404 mask, never " +
+        'a 304 that would confirm the Resource exists',
+      optional: true,
+      specRefs: [
+        'https://wallet.storage/spec#caching',
+        'https://wallet.storage/spec#error-responses'
+      ],
+      run: async (ctx, state) => {
+        const { alice, bob, collectionUrl } = state
+        const resourceUrl = `${collectionUrl}get-304-masked`
+
+        await alice.rootClient.request({
+          url: resourceUrl,
+          method: 'PUT',
+          action: 'PUT',
+          json: { name: 'alice-owned' }
+        })
+        const first = await readResource({
+          url: resourceUrl,
+          method: 'GET',
+          invocationSigner: alice.rootClient.invocationSigner
+        })
+        const etag = first.headers.get('etag')
+        assert.ok(etag, 'expected GET to carry an ETag')
+
+        const masked = await readResource({
+          url: resourceUrl,
+          method: 'GET',
+          invocationSigner: bob.rootClient.invocationSigner,
+          ifNoneMatch: etag
+        })
+        assert.equal(masked.status, 404)
+      }
+    },
+    {
+      id: 'conditional.post-response-no-store',
+      name:
+        '[root] the response to a POST (non-idempotent) is marked ' +
+        'non-cacheable with Cache-Control: no-store',
+      optional: true,
+      specRefs: ['https://wallet.storage/spec#caching'],
+      run: async (ctx, state) => {
+        const { alice, collectionUrl } = state
+        const response = await alice.rootClient.request({
+          url: collectionUrl,
+          method: 'POST',
+          action: 'POST',
+          json: { name: 'posted' }
+        })
+        assert.equal(response.status, 201)
+        assert.equal(response.headers.get('cache-control'), 'no-store')
       }
     }
   ]
