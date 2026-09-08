@@ -1,5 +1,14 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.12.0 - TBD
+
+### Added
+
+- `governed-log-api`: an append must fast-forward the stored log. A body the
+  stored log is not a prefix of is 412 `precondition-failed` even under a
+  current `If-Match`; a body adding no line or several is 400
+  `invalid-request-body`; the log is unchanged either way.
+
 ## 0.11.0 - 2026-09-07
 
 ### Added

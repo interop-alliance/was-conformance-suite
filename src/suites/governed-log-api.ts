@@ -502,6 +502,61 @@ export const governedLogApi: Suite<State> = {
       }
     },
     {
+      id: 'governed-log.append-fast-forward-only',
+      name: '[root] an append must fast-forward the stored log: a rewritten prefix is 412 under a current If-Match, adding no line or several is 400, and the log is unchanged',
+      specRefs: [
+        'https://wallet.storage/spec#precondition-failed',
+        'https://wallet.storage/spec#invalid-request-body'
+      ],
+      run: async (ctx, state) => {
+        const { getLog, putLog, governedCollection } = state
+        if (!state.governedSupported) {
+          ctx.skip('backend does not advertise governed-history-logs')
+        }
+        const { collectionId, body, etag } = await governedCollection()
+        const secondLine = entryLine({ ordinal: 2, state: twoEpochs }) + '\n'
+
+        // A rewritten genesis (different versionId) under the current ETag.
+        const rewritten =
+          entryLine({
+            ordinal: 9,
+            state: oneEpoch,
+            parameters: { method: 'resource-log:0.1', scid: 'zScid' }
+          }) +
+          '\n' +
+          secondLine
+        await assertProblem({
+          response: await putLog({
+            collectionId,
+            body: rewritten,
+            headers: { 'if-match': etag }
+          }),
+          status: 412,
+          type: 'precondition-failed'
+        })
+
+        // The stored bytes alone, and the stored bytes plus two lines.
+        for (const extended of [
+          body,
+          body + secondLine + entryLine({ ordinal: 3, state: twoEpochs }) + '\n'
+        ]) {
+          await assertProblem({
+            response: await putLog({
+              collectionId,
+              body: extended,
+              headers: { 'if-match': etag }
+            }),
+            status: 400,
+            type: 'invalid-request-body'
+          })
+        }
+
+        const read = await getLog({ collectionId })
+        assert.equal(read.headers.get('etag'), etag)
+        assert.equal(await read.text(), body)
+      }
+    },
+    {
       id: 'governed-log.guarded-create-existing-412',
       name: '[root] a guarded create on an existing log is 412 precondition-failed',
       specRefs: ['https://wallet.storage/spec#precondition-failed'],
