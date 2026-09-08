@@ -13,9 +13,11 @@
  * backend does not advertise it, while the two ETag tests reflect the weaker
  * `SHOULD emit ETag` guidance and are marked `optional: true`.
  *
- * The tests work at the Resource level in a plain JSON Collection, driving raw
- * `ZcapClient.request()` calls so the `If-Match` / `If-None-Match` precondition
- * headers can be attached directly. Those preconditions describe the request
+ * Most tests work at the Resource level in a plain JSON Collection; the
+ * "Descriptions" group covers the same preconditions on the Collection and
+ * Space Descriptions (the guarded create two provisioning clients race on).
+ * All drive raw `ZcapClient.request()` calls so the `If-Match` /
+ * `If-None-Match` precondition headers can be attached directly. Those preconditions describe the request
  * rather than the capability target, so they need not be covered by the
  * signature; the server reads them off the request headers after authorization.
  */
@@ -699,6 +701,280 @@ export const conditionalRequestsApi: Suite<State> = {
           ifNoneMatch: etag
         })
         assert.equal(masked.status, 404)
+      }
+    },
+    {
+      id: 'conditional.collection-if-none-match-create-then-412',
+      name:
+        '[root] a Collection PUT with `If-None-Match: *` creates an absent ' +
+        'Collection and 412s on a present one',
+      group: 'Descriptions',
+      specRefs: [
+        'https://wallet.storage/spec#conditional-requests',
+        'https://wallet.storage/spec#update-or-create-by-id-collection-operation',
+        'https://wallet.storage/spec#precondition-failed'
+      ],
+      run: async (ctx, state) => {
+        const { alice, conditionalWritesSupported } = state
+        if (!conditionalWritesSupported) {
+          ctx.skip('backend does not advertise conditional-writes')
+        }
+        const collectionUrl = new URL(
+          `/space/${alice.space1.id}/guarded-collection`,
+          ctx.serverUrl
+        ).toString()
+
+        // The guarded create proceeds on an absent Collection.
+        const created = await alice.rootClient.request({
+          url: collectionUrl,
+          method: 'PUT',
+          action: 'PUT',
+          json: { id: 'guarded-collection', name: 'Winner' },
+          headers: { 'if-none-match': '*' }
+        })
+        assert.equal(created.status, 201)
+        assert.match(
+          created.headers.get('etag'),
+          /^"[^"]+"$/,
+          'expected a quoted ETag validator on the create'
+        )
+
+        // The loser of a create race: the same guarded PUT MUST NOT replace
+        // the winner's description, and MUST 412.
+        let expectedError: any
+        try {
+          await alice.rootClient.request({
+            url: collectionUrl,
+            method: 'PUT',
+            action: 'PUT',
+            json: { id: 'guarded-collection', name: 'Loser' },
+            headers: { 'if-none-match': '*' }
+          })
+        } catch (err) {
+          expectedError = err
+        }
+        assertPreconditionFailed(expectedError)
+
+        const unchanged = await alice.rootClient.request({
+          url: collectionUrl,
+          method: 'GET'
+        })
+        assert.equal(unchanged.data.name, 'Winner')
+
+        // An unconditional PUT still replaces.
+        const replaced = await alice.rootClient.request({
+          url: collectionUrl,
+          method: 'PUT',
+          action: 'PUT',
+          json: { id: 'guarded-collection', name: 'Replaced' }
+        })
+        assert.ok(
+          replaced.status === 204 || replaced.status === 200,
+          `expected a success status, got ${replaced.status}`
+        )
+      }
+    },
+    {
+      id: 'conditional.space-get-carries-etag',
+      name:
+        '[root] Read Space carries a quoted ETag and a matching ' +
+        '`If-None-Match` is answered 304',
+      group: 'Descriptions',
+      optional: true,
+      specRefs: [
+        'https://wallet.storage/spec#caching',
+        'https://wallet.storage/spec#read-space-operation'
+      ],
+      run: async (ctx, state) => {
+        const { alice } = state
+        const spaceUrl = new URL(
+          `/space/${alice.space1.id}`,
+          ctx.serverUrl
+        ).toString()
+        const read = await readResource({
+          url: spaceUrl,
+          method: 'GET',
+          invocationSigner: alice.rootClient.invocationSigner
+        })
+        assert.equal(read.status, 200)
+        const etag = read.headers.get('etag')
+        assert.match(etag, /^"[^"]+"$/, 'expected a quoted ETag validator')
+        const body = await read.json()
+        assert.equal(body.id, alice.space1.id)
+
+        const unchanged = await readResource({
+          url: spaceUrl,
+          method: 'GET',
+          invocationSigner: alice.rootClient.invocationSigner,
+          ifNoneMatch: etag!
+        })
+        assert.equal(unchanged.status, 304)
+        assert.equal(unchanged.headers.get('etag'), etag)
+        assert.equal(await unchanged.text(), '')
+      }
+    },
+    {
+      id: 'conditional.space-if-none-match-create-then-412',
+      name:
+        '[root] a Space PUT with `If-None-Match: *` creates an absent Space ' +
+        'and 412s on a present one',
+      group: 'Descriptions',
+      specRefs: [
+        'https://wallet.storage/spec#conditional-requests',
+        'https://wallet.storage/spec#update-or-create-by-id-space-operation',
+        'https://wallet.storage/spec#precondition-failed'
+      ],
+      run: async (ctx, state) => {
+        const { alice, conditionalWritesSupported } = state
+        if (!conditionalWritesSupported) {
+          ctx.skip('backend does not advertise conditional-writes')
+        }
+        const spaceId = ctx.generateId()
+        const spaceUrl = new URL(`/space/${spaceId}`, ctx.serverUrl).toString()
+        try {
+          const created = await alice.rootClient.request({
+            url: spaceUrl,
+            method: 'PUT',
+            action: 'PUT',
+            json: { id: spaceId, name: 'Winner', controller: alice.did },
+            headers: { 'if-none-match': '*' }
+          })
+          assert.equal(created.status, 201)
+          assert.match(
+            created.headers.get('etag'),
+            /^"[^"]+"$/,
+            'expected a quoted ETag validator on the create'
+          )
+
+          // The loser of a provisioning race MUST NOT replace the winner's
+          // description, and MUST 412.
+          let expectedError: any
+          try {
+            await alice.rootClient.request({
+              url: spaceUrl,
+              method: 'PUT',
+              action: 'PUT',
+              json: { id: spaceId, name: 'Loser', controller: alice.did },
+              headers: { 'if-none-match': '*' }
+            })
+          } catch (err) {
+            expectedError = err
+          }
+          assertPreconditionFailed(expectedError)
+
+          const unchanged = await alice.rootClient.request({
+            url: spaceUrl,
+            method: 'GET'
+          })
+          assert.equal(unchanged.data.name, 'Winner')
+        } finally {
+          try {
+            await alice.rootClient.request({
+              url: spaceUrl,
+              method: 'DELETE',
+              action: 'DELETE'
+            })
+          } catch {
+            /* best-effort cleanup */
+          }
+        }
+      }
+    },
+    {
+      id: 'conditional.space-if-match-cas',
+      name:
+        '[root] a stale `If-Match` on Update Space 412s; the current one ' +
+        'succeeds and an unconditional PUT still replaces',
+      group: 'Descriptions',
+      specRefs: [
+        'https://wallet.storage/spec#conditional-requests',
+        'https://wallet.storage/spec#update-or-create-by-id-space-operation',
+        'https://wallet.storage/spec#precondition-failed'
+      ],
+      run: async (ctx, state) => {
+        const { alice, conditionalWritesSupported } = state
+        if (!conditionalWritesSupported) {
+          ctx.skip('backend does not advertise conditional-writes')
+        }
+        const spaceId = ctx.generateId()
+        const spaceUrl = new URL(`/space/${spaceId}`, ctx.serverUrl).toString()
+        const description = (name: string) => ({
+          id: spaceId,
+          name,
+          controller: alice.did
+        })
+        try {
+          const created = await alice.rootClient.request({
+            url: spaceUrl,
+            method: 'PUT',
+            action: 'PUT',
+            json: description('One')
+          })
+          const currentEtag = created.headers.get('etag')
+          assert.ok(currentEtag, 'expected an ETag on the Space create')
+
+          // A validator that cannot be current MUST NOT write, and MUST 412.
+          let expectedError: any
+          try {
+            await alice.rootClient.request({
+              url: spaceUrl,
+              method: 'PUT',
+              action: 'PUT',
+              json: description('Stale'),
+              headers: { 'if-match': '"99999"' }
+            })
+          } catch (err) {
+            expectedError = err
+          }
+          assertPreconditionFailed(expectedError)
+          const unchanged = await alice.rootClient.request({
+            url: spaceUrl,
+            method: 'GET'
+          })
+          assert.equal(unchanged.data.name, 'One')
+
+          // The matching precondition is satisfied: the write proceeds and
+          // the response carries the new validator.
+          const swapped = await alice.rootClient.request({
+            url: spaceUrl,
+            method: 'PUT',
+            action: 'PUT',
+            json: description('Two'),
+            headers: { 'if-match': currentEtag }
+          })
+          assert.ok(
+            swapped.status === 204 || swapped.status === 200,
+            `expected a success status, got ${swapped.status}`
+          )
+          assert.notEqual(swapped.headers.get('etag'), currentEtag)
+          const after = await alice.rootClient.request({
+            url: spaceUrl,
+            method: 'GET'
+          })
+          assert.equal(after.data.name, 'Two')
+
+          // An unconditional PUT still replaces (last writer wins).
+          const replaced = await alice.rootClient.request({
+            url: spaceUrl,
+            method: 'PUT',
+            action: 'PUT',
+            json: description('Three')
+          })
+          assert.ok(
+            replaced.status === 204 || replaced.status === 200,
+            `expected a success status, got ${replaced.status}`
+          )
+        } finally {
+          try {
+            await alice.rootClient.request({
+              url: spaceUrl,
+              method: 'DELETE',
+              action: 'DELETE'
+            })
+          } catch {
+            /* best-effort cleanup */
+          }
+        }
       }
     },
     {

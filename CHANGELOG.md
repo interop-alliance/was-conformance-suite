@@ -1,5 +1,18 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.13.0 - TBD
+
+### Added
+
+- `conditional-requests-api`, a "Descriptions" group: a Collection PUT with
+  `If-None-Match: *` creates an absent Collection and 412s on a present one;
+  Read Space carries a quoted `ETag` and a covering `If-None-Match` is 304
+  (optional, the spec's SHOULD); a Space PUT with `If-None-Match: *` creates
+  an absent Space and 412s on a present one; a stale `If-Match` on Update
+  Space 412s while the current one succeeds and an unconditional PUT still
+  replaces. The write cases skip when the default backend does not advertise
+  `conditional-writes`.
+
 ## 0.12.0 - 2026-09-07
 
 ### Added
