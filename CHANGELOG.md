@@ -1,5 +1,16 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.14.0 - TBD
+
+### Added
+
+- `denial-reasons-api`: a refused capability invocation is still a 404, and a
+  server may name two causes by `type` alone to the holder of the affected
+  chain: `capability-expired` and `capability-revoked` (optional; the revocation
+  cases skip when the server has no revocation endpoint). A copy of the grant
+  invoked without its controller's key, and a refusal for any other reason, stay
+  the merged `not-found` (the latter required).
+
 ## 0.13.0 - 2026-09-08
 
 ### Added
@@ -7,10 +18,10 @@
 - `conditional-requests-api`, a "Descriptions" group: a Collection PUT with
   `If-None-Match: *` creates an absent Collection and 412s on a present one;
   Read Space carries a quoted `ETag` and a covering `If-None-Match` is 304
-  (optional, the spec's SHOULD); a Space PUT with `If-None-Match: *` creates
-  an absent Space and 412s on a present one; a stale `If-Match` on Update
-  Space 412s while the current one succeeds and an unconditional PUT still
-  replaces. The write cases skip when the default backend does not advertise
+  (optional, the spec's SHOULD); a Space PUT with `If-None-Match: *` creates an
+  absent Space and 412s on a present one; a stale `If-Match` on Update Space
+  412s while the current one succeeds and an unconditional PUT still replaces.
+  The write cases skip when the default backend does not advertise
   `conditional-writes`.
 
 ## 0.12.0 - 2026-09-07

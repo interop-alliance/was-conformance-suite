@@ -135,6 +135,7 @@ The available suite ids (for `--suite`) are:
 | `collection-api`            | Collections API                                         |
 | `conditional-requests-api`  | Conditional requests & caching                          |
 | `delegation-cryptosuites`   | Delegation-proof cryptosuites                           |
+| `denial-reasons-api`        | Typed denial reasons (capability-expired / -revoked)    |
 | `digest-api`                | Request body integrity (Digest) negatives               |
 | `encryption-descriptor-api` | Encryption descriptor API                               |
 | `governed-log-api`          | Governing history log API                               |

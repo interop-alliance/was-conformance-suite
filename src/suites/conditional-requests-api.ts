@@ -798,7 +798,11 @@ export const conditionalRequestsApi: Suite<State> = {
         })
         assert.equal(read.status, 200)
         const etag = read.headers.get('etag')
-        assert.match(etag, /^"[^"]+"$/, 'expected a quoted ETag validator')
+        assert.match(
+          etag ?? '',
+          /^"[^"]+"$/,
+          'expected a quoted ETag validator'
+        )
         const body = await read.json()
         assert.equal(body.id, alice.space1.id)
 
