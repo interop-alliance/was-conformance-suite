@@ -71,8 +71,7 @@ export async function buildZcapClients({
     seed: decodeSecretKeySeed({ secretKeySeed: secretKeySeeds.alice })
   })
   const aliceRootDid = `did:key:${aliceKeyPair.fingerprint()}`
-  aliceKeyPair.id = `${aliceRootDid}#${aliceKeyPair.fingerprint()}`
-  const aliceSigner = aliceKeyPair.signer()
+  const aliceSigner = aliceKeyPair.didKeySigner()
 
   const aliceDelegatedAppKeyPair = await Ed25519VerificationKey.generate({
     seed: decodeSecretKeySeed({
@@ -80,14 +79,12 @@ export async function buildZcapClients({
     })
   })
   const aliceDelegatedAppDid = `did:key:${aliceDelegatedAppKeyPair.fingerprint()}`
-  aliceDelegatedAppKeyPair.id = `${aliceDelegatedAppDid}#${aliceDelegatedAppKeyPair.fingerprint()}`
 
   const bobKeyPair = await Ed25519VerificationKey.generate({
     seed: decodeSecretKeySeed({ secretKeySeed: secretKeySeeds.bob })
   })
   const bobRootDid = `did:key:${bobKeyPair.fingerprint()}`
-  bobKeyPair.id = `${bobRootDid}#${bobKeyPair.fingerprint()}`
-  const bobSigner = bobKeyPair.signer()
+  const bobSigner = bobKeyPair.didKeySigner()
 
   return {
     alice: {
@@ -100,7 +97,7 @@ export async function buildZcapClients({
     },
     aliceDelegatedApp: {
       did: aliceDelegatedAppDid,
-      signer: aliceDelegatedAppKeyPair.signer()
+      signer: aliceDelegatedAppKeyPair.didKeySigner()
     },
     bob: {
       did: bobRootDid,

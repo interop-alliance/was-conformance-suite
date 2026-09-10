@@ -1,5 +1,13 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.15.0 - TBD
+
+### Changed
+
+- Bumped `@interop/ed25519-verification-key` to 8.2.0 and switched the test
+  actors' `did:key` signers to its new `didKeySigner()` instead of mutating
+  `keyPair.id`/`controller` before calling `signer()`.
+
 ## 0.14.0 - 2026-09-10
 
 ### Added
