@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test'
 
+import { suites } from '../../src/suites/index.js'
+
 /**
  * E2e for the web app (served by the repo-root Vite dev server at
  * /web/index.html). The first three tests are server-free: they exercise the
@@ -19,11 +21,11 @@ test('setup form renders the suite registry and prefills ?server=', async ({
     'http://localhost:3002'
   )
   await expect(page.getByTestId('token')).toHaveAttribute('type', 'password')
-  // Full registry: 24 suites, all selected by default.
+  // Full registry, all selected by default.
   const checkboxes = page
     .getByTestId('suite-select')
     .locator('input[type="checkbox"]')
-  await expect(checkboxes).toHaveCount(24)
+  await expect(checkboxes).toHaveCount(suites.length)
   for (const box of await checkboxes.all()) {
     await expect(box).toBeChecked()
   }

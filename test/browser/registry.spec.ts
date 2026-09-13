@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test'
 
+import { suites } from '../../src/suites/index.js'
+
 /**
  * Browser-compat smoke: importing the library in a browser pulls in the whole
  * suite registry and its dependency stack (was-client incl. tar handling,
@@ -21,9 +23,9 @@ test('suite registry loads and context builds in the browser', async ({
       generatedId: ctx.generateId()
     }
   })
-  // The total test count is deliberately not asserted: it moves with every
-  // added test, and breaking this smoke test says nothing about browser compat.
-  expect(result.suiteIds).toHaveLength(24)
+  // Compare against the registry as Node sees it, so a suite that fails to
+  // load in the browser build shows up without hardcoding the count here.
+  expect(result.suiteIds).toEqual(suites.map(s => s.id))
   expect(result.suiteIds).toContain('spaces-api')
   // Deterministic seed: the did:key is stable across environments.
   expect(result.aliceDid).toMatch(/^did:key:z6Mk/)
