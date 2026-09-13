@@ -87,7 +87,7 @@ export const authzOrderingApi: Suite<State> = {
     const { alice } = state
     try {
       await alice.rootClient.request({
-        url: new URL(`/space/${alice.space1.id}`, ctx.serverUrl).toString(),
+        url: new URL(`/space/${alice.space1.id}/`, ctx.serverUrl).toString(),
         method: 'DELETE'
       })
     } catch {
@@ -115,33 +115,6 @@ export const authzOrderingApi: Suite<State> = {
             method: 'POST',
             action: 'POST',
             json: { id: 'credentials', name: 'Probe Collection' }
-          })
-        } catch (err) {
-          expectedError = err
-        }
-        assertNotFoundMask(expectedError)
-      }
-    },
-    {
-      id: 'ordering.resource-post-conflict-404',
-      name: "[root] Bob's POST of an existing Resource id yields 404, not id-conflict (409)",
-      specRefs: [
-        'https://wallet.storage/spec#id-conflict',
-        'https://wallet.storage/spec#not-found'
-      ],
-      run: async (ctx, state) => {
-        const { serverUrl } = ctx
-        const { alice, bob, resourceId } = state
-        let expectedError: any
-        try {
-          await bob.rootClient.request({
-            url: new URL(
-              `/space/${alice.space1.id}/credentials/`,
-              serverUrl
-            ).toString(),
-            method: 'POST',
-            action: 'POST',
-            json: { id: resourceId, name: 'Probe Resource' }
           })
         } catch (err) {
           expectedError = err

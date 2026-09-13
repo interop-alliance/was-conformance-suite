@@ -179,7 +179,7 @@ async function assertProblem({
 export const governedLogApi: Suite<State> = {
   id: 'governed-log-api',
   name: 'Governing history log API',
-  specRefs: ['https://wallet.storage/spec#collection-data-model'],
+  specRefs: ['https://wallet.storage/spec#collection-metadata-data-model'],
 
   setup: async ctx => {
     const alice: any = { ...ctx.actors.alice }
@@ -331,7 +331,7 @@ export const governedLogApi: Suite<State> = {
     const { alice } = state
     try {
       await alice.rootClient.request({
-        url: new URL(`/space/${alice.space1.id}`, ctx.serverUrl).toString(),
+        url: new URL(`/space/${alice.space1.id}/`, ctx.serverUrl).toString(),
         method: 'DELETE'
       })
     } catch {
@@ -358,7 +358,7 @@ export const governedLogApi: Suite<State> = {
         }
 
         const described = await alice.rootClient.request({
-          url: collectionUrl(collectionId),
+          url: `${collectionUrl(collectionId)}/meta`,
           method: 'GET'
         })
         assert.deepStrictEqual(described.data.encryption, expected)
@@ -436,7 +436,7 @@ export const governedLogApi: Suite<State> = {
         }
         const { collectionId, body, etag } = await governedCollection()
         const before = await alice.rootClient.request({
-          url: collectionUrl(collectionId),
+          url: `${collectionUrl(collectionId)}/meta`,
           method: 'GET'
         })
 
@@ -453,16 +453,17 @@ export const governedLogApi: Suite<State> = {
         assert.notEqual(newEtag, etag)
 
         const after = await alice.rootClient.request({
-          url: collectionUrl(collectionId),
+          url: `${collectionUrl(collectionId)}/meta`,
           method: 'GET'
         })
         assert.equal(after.data.encryption.currentEpoch, 'urn:epoch:2')
         assert.equal(after.data.encryption.epochs.length, 2)
-        // The Description's own ETag moves too: its served content changed.
+        // The Metadata object's own ETag moves too: its served content
+        // changed.
         assert.notEqual(
           after.headers.get('etag'),
           before.headers.get('etag'),
-          'expected a log append to bump the Collection Description ETag'
+          'expected a log append to bump the Collection Metadata object ETag'
         )
       }
     },
@@ -590,7 +591,7 @@ export const governedLogApi: Suite<State> = {
         let expectedError: any
         try {
           await alice.rootClient.request({
-            url: collectionUrl(collectionId),
+            url: `${collectionUrl(collectionId)}/meta`,
             method: 'PUT',
             action: 'PUT',
             json: { id: collectionId, encryption: twoEpochs }
@@ -605,22 +606,22 @@ export const governedLogApi: Suite<State> = {
           'https://wallet.storage/spec#encryption-history-log-governed'
         )
 
-        // The descriptor is untouched, and a Description update that leaves
-        // `encryption` alone still lands.
+        // The descriptor is untouched, and a Metadata object update that
+        // leaves `encryption` alone still lands.
         const described = await alice.rootClient.request({
-          url: collectionUrl(collectionId),
+          url: `${collectionUrl(collectionId)}/meta`,
           method: 'GET'
         })
         assert.equal(described.data.encryption.currentEpoch, 'urn:epoch:1')
         const renamed = await alice.rootClient.request({
-          url: collectionUrl(collectionId),
+          url: `${collectionUrl(collectionId)}/meta`,
           method: 'PUT',
           action: 'PUT',
           json: { id: collectionId, name: 'Renamed' }
         })
         assert.equal(renamed.status, 204)
         const reread = await alice.rootClient.request({
-          url: collectionUrl(collectionId),
+          url: `${collectionUrl(collectionId)}/meta`,
           method: 'GET'
         })
         assert.equal(reread.data.name, 'Renamed')
@@ -630,7 +631,7 @@ export const governedLogApi: Suite<State> = {
     {
       id: 'governed-log.epoch-violation-refused',
       name: '[root] an append that drops an epoch or moves currentEpoch back is refused and the log is unchanged',
-      specRefs: ['https://wallet.storage/spec#collection-data-model'],
+      specRefs: ['https://wallet.storage/spec#collection-metadata-data-model'],
       run: async (ctx, state) => {
         const { freshCollection, getLog, putLog } = state
         if (!state.governedSupported) {
@@ -733,7 +734,7 @@ export const governedLogApi: Suite<State> = {
       name: '[root] the log is absent from the listing, exempt from the envelope rule, and untouched by a PUT /meta',
       specRefs: [
         'https://wallet.storage/spec#list-collection-operation',
-        'https://wallet.storage/spec#update-collection-metadata-operation'
+        'https://wallet.storage/spec#update-or-create-by-id-collection-operation'
       ],
       run: async (ctx, state) => {
         const { alice, collectionUrl, getLog, governedCollection } = state
@@ -845,7 +846,7 @@ export const governedLogApi: Suite<State> = {
         }
         const { collectionId, body } = await governedCollection()
         await alice.rootClient.request({
-          url: collectionUrl(collectionId),
+          url: `${collectionUrl(collectionId)}/`,
           method: 'DELETE'
         })
         await alice.rootClient.request({
@@ -855,7 +856,7 @@ export const governedLogApi: Suite<State> = {
           json: { id: collectionId, name: collectionId }
         })
         const described = await alice.rootClient.request({
-          url: collectionUrl(collectionId),
+          url: `${collectionUrl(collectionId)}/meta`,
           method: 'GET'
         })
         assert.equal(described.data.encryption, undefined)

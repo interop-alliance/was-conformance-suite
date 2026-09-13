@@ -142,6 +142,7 @@ The available suite ids (for `--suite`) are:
 | `invocation-target-api`     | Capability invocationTarget binding                     |
 | `plaintext-declaration-api` | Plaintext declaration API                               |
 | `policy-api`                | Access-control policy API                               |
+| `reserved-methods-api`      | Methods at reserved endpoints (405)                     |
 | `resource-api`              | Resource API                                            |
 | `server`                    | Server                                                  |
 | `spaces-api`                | Spaces                                                  |

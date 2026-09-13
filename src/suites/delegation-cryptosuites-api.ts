@@ -119,7 +119,7 @@ export const delegationCryptosuitesApi: Suite<State> = {
   teardown: async (ctx, state) => {
     try {
       await state.alice.rootClient.request({
-        url: new URL(`/space/${state.spaceId}`, ctx.serverUrl).toString(),
+        url: new URL(`/space/${state.spaceId}/`, ctx.serverUrl).toString(),
         method: 'DELETE'
       })
     } catch {

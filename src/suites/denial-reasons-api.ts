@@ -97,7 +97,10 @@ async function delegateAndRevoke({
   const { alice, aliceDelegatedApp, spaceId, docUrl } = state
   // Rooted at the Space, not the document: a revocation is scoped to the
   // Space the chain roots in, so the document's own root would be refused.
-  const spaceUrl = new URL(`/space/${spaceId}`, ctx.serverUrl).toString()
+  // The Space's root capability id is minted from its canonical
+  // trailing-slash URL, so the parent capability here must match that form
+  // or the chain fails to verify before revocation is ever reached.
+  const spaceUrl = new URL(`/space/${spaceId}/`, ctx.serverUrl).toString()
   const capability = await alice.rootClient.delegate({
     capability: `urn:zcap:root:${encodeURIComponent(spaceUrl)}`,
     allowedActions: ['GET'],
@@ -166,7 +169,7 @@ export const denialReasonsApi: Suite<State> = {
   teardown: async (ctx, state) => {
     try {
       await state.alice.rootClient.request({
-        url: new URL(`/space/${state.spaceId}`, ctx.serverUrl).toString(),
+        url: new URL(`/space/${state.spaceId}/`, ctx.serverUrl).toString(),
         method: 'DELETE'
       })
     } catch {

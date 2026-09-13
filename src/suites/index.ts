@@ -22,6 +22,7 @@ import { governedLogApi } from './governed-log-api.js'
 import { invocationTargetApi } from './invocation-target-api.js'
 import { plaintextDeclarationApi } from './plaintext-declaration-api.js'
 import { policyApi } from './policy-api.js'
+import { reservedMethodsApi } from './reserved-methods-api.js'
 import { resourceApi } from './resource-api.js'
 import { server } from './server.js'
 import { spacesApi } from './spaces-api.js'
@@ -51,6 +52,7 @@ export const suites: Array<Suite<any>> = [
   invocationTargetApi,
   plaintextDeclarationApi,
   policyApi,
+  reservedMethodsApi,
   resourceApi,
   server,
   spacesApi,
@@ -77,6 +79,7 @@ export {
   invocationTargetApi,
   plaintextDeclarationApi,
   policyApi,
+  reservedMethodsApi,
   resourceApi,
   server,
   spacesApi,

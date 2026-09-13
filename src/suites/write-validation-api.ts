@@ -5,13 +5,16 @@
  * WAS conformance tests -- write-validation negatives.
  *
  * Covers two MUST-level rejections of malformed create requests: a
- * client-chosen Collection or Resource id that collides with the spec's
- * Reserved Path Segment Registry (409 `reserved-id`), and a Resource write
- * that carries no `Content-Type` header (400 `missing-content-type`). The
- * reserved-id tests exercise both create wire shapes (POST with a body `id`
- * and PUT with the id in the path); the Content-Type test signs with the
- * low-level `signCapabilityInvocation` primitive and sends raw bytes via
- * `fetch`, since a well-behaved client always sets a content type.
+ * client-chosen Collection id that collides with the spec's Reserved Path
+ * Segment Registry (409 `reserved-id`), and a Resource write that carries no
+ * `Content-Type` header (400 `missing-content-type`). The reserved-id tests
+ * exercise both Collection create wire shapes: a POST body `id`, and a PUT of
+ * the Collection Metadata object (`.../meta`, the create-by-id path). A
+ * Resource id has no reserved-id case: the server generates the id on Create
+ * Resource, and a reserved segment in the Resource position is a reserved
+ * endpoint (see reserved-methods-api). The Content-Type test signs
+ * with the low-level `signCapabilityInvocation` primitive and sends raw
+ * bytes via `fetch`, since a well-behaved client always sets a content type.
  */
 import { signCapabilityInvocation } from '@interop/http-signature-zcap-invoke'
 import assert from '../harness/assert.js'
@@ -68,7 +71,7 @@ export const writeValidationApi: Suite<State> = {
     const { alice } = state
     try {
       await alice.rootClient.request({
-        url: new URL(`/space/${alice.space1.id}`, ctx.serverUrl).toString(),
+        url: new URL(`/space/${alice.space1.id}/`, ctx.serverUrl).toString(),
         method: 'DELETE'
       })
     } catch {
@@ -110,53 +113,27 @@ export const writeValidationApi: Suite<State> = {
         '(`export`) is rejected with 409 reserved-id',
       specRefs: [
         'https://wallet.storage/spec#space-level-reserved-endpoints',
+        'https://wallet.storage/spec#update-or-create-by-id-collection-operation',
         'https://wallet.storage/spec#reserved-id'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice } = state
-        // No static PUT route exists at `/export`, so the request reaches the
+        // v0.5 retires the bare Collection-URL PUT (it now answers a MUST
+        // 405, "Methods at Reserved Endpoints"), so create-by-id is a PUT of
+        // the Collection's Metadata object. That request reaches the
         // parametric Update-or-Create-Collection route -- which must reject
         // the reserved id rather than create the Collection.
         let expectedError: any
         try {
           await alice.rootClient.request({
             url: new URL(
-              `/space/${alice.space1.id}/export`,
+              `/space/${alice.space1.id}/export/meta`,
               serverUrl
             ).toString(),
             method: 'PUT',
             action: 'PUT',
             json: { name: 'Reserved Collection Id Probe' }
-          })
-        } catch (err) {
-          expectedError = err
-        }
-        assertReservedId(expectedError)
-      }
-    },
-    {
-      id: 'write-validation.resource-reserved-id-put',
-      name:
-        '[root] creating a Resource whose id is a reserved segment ' +
-        '(`quota`) is rejected with 409 reserved-id',
-      specRefs: [
-        'https://wallet.storage/spec#collection-level-reserved-endpoints',
-        'https://wallet.storage/spec#reserved-id'
-      ],
-      run: async (ctx, state) => {
-        const { serverUrl } = ctx
-        const { alice } = state
-        let expectedError: any
-        try {
-          await alice.rootClient.request({
-            url: new URL(
-              `/space/${alice.space1.id}/docs/quota`,
-              serverUrl
-            ).toString(),
-            method: 'PUT',
-            action: 'PUT',
-            json: { name: 'Reserved Resource Id Probe' }
           })
         } catch (err) {
           expectedError = err

@@ -89,12 +89,14 @@ export const clientSpaces: Suite<State> = {
         const { alice, newSpace } = state
         const space = await newSpace('Home')
         const description = await space.describe()
+        // A Space is a container, so its `url` carries the canonical
+        // trailing slash (spec "Space Metadata Data Model").
         assert.deepStrictEqual(withoutCreatedBy(description), {
           id: space.id,
           type: ['Space'],
           name: 'Home',
           controller: alice.did,
-          url: `/space/${space.id}`,
+          url: `/space/${space.id}/`,
           linkset: `/space/${space.id}/linkset`
         })
       }
@@ -155,17 +157,17 @@ export const clientSpaces: Suite<State> = {
         assert.equal(listing.totalItems, listing.items.length)
         assert.deepStrictEqual(
           listing.items.find((item: { id: string }) => item.id === space.id),
-          { id: space.id, name: 'Listed Space', url: `/space/${space.id}` }
+          { id: space.id, name: 'Listed Space', url: `/space/${space.id}/` }
         )
       }
     },
     {
       id: 'collections.create-and-describe',
-      name: 'creates a collection by id and reads its description',
+      name: 'creates a collection by id and reads its Collection Metadata object',
       group: 'collections',
       specRefs: [
         'https://wallet.storage/spec#update-or-create-by-id-collection-operation',
-        'https://wallet.storage/spec#get-collection-description-operation'
+        'https://wallet.storage/spec#read-collection-metadata-operation'
       ],
       run: async (ctx, state) => {
         const { withoutCreatedBy } = ctx
@@ -175,12 +177,25 @@ export const clientSpaces: Suite<State> = {
           name: 'Verifiable Credentials'
         })
         assert.equal(collection.id, 'credentials')
-        assert.deepStrictEqual(withoutCreatedBy(await collection.describe()), {
+        // A Collection is a container too, so its `url` also carries the
+        // canonical trailing slash. `createdAt`/`updatedAt` are dynamic (spec
+        // "Collection Metadata Data Model", OPTIONAL server-managed
+        // timestamps -- now part of the merged object); `etag` is a
+        // client-side convenience the wire body never carries (spec: the
+        // validator is surfaced only as the `ETag` header). All three are
+        // checked for shape, not exact value.
+        const described = withoutCreatedBy(
+          await collection.describe()
+        ) as Record<string, unknown>
+        const { createdAt, updatedAt, etag: _etag, ...rest } = described
+        assert.match(createdAt as string, /^\d{4}-\d{2}-\d{2}T/)
+        assert.match(updatedAt as string, /^\d{4}-\d{2}-\d{2}T/)
+        assert.deepStrictEqual(rest, {
           id: 'credentials',
           type: ['Collection'],
           name: 'Verifiable Credentials',
           backend: { id: 'default' },
-          url: `/space/${space.id}/credentials`,
+          url: `/space/${space.id}/credentials/`,
           linkset: `/space/${space.id}/credentials/linkset`
         })
       }

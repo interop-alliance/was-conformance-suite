@@ -51,37 +51,6 @@ async function getWithCapability({
 }
 
 /**
- * Provisions a fresh Collection with a random id, returning its `/meta` URL and
- * the Collection URL it hangs off. Every Collection Metadata test works on its
- * own Collection, so the `metaVersion` sequence a test observes is its own.
- *
- * @param options {object}
- * @param options.ctx {any}   the test context (for `serverUrl` / `generateId`)
- * @param options.alice {any}   the suite's root actor
- * @returns {Promise<{collectionUrl: string, metaUrl: string}>}
- */
-async function freshCollection({
-  ctx,
-  alice
-}: {
-  ctx: any
-  alice: any
-}): Promise<{ collectionUrl: string; metaUrl: string }> {
-  const collectionId = ctx.generateId()
-  const collectionUrl = new URL(
-    `/space/${alice.space1.id}/${collectionId}`,
-    ctx.serverUrl
-  ).toString()
-  await alice.rootClient.request({
-    url: collectionUrl,
-    method: 'PUT',
-    action: 'PUT',
-    json: { id: collectionId, name: 'Metadata Collection' }
-  })
-  return { collectionUrl, metaUrl: `${collectionUrl}/meta` }
-}
-
-/**
  * Sends a signed Collection Metadata request, translating a 501
  * `unsupported-operation` into a skip: Collection Metadata is an OPTIONAL
  * feature, so a server that does not implement it must not be failed for it.
@@ -127,6 +96,41 @@ async function metaRequestOrSkip({
   }
 }
 
+/**
+ * Provisions a fresh Collection with a random id via a guarded (create-only)
+ * `PUT` of its Metadata object -- the v0.5 create-by-id path, now that `PUT`
+ * at the bare Collection URL is retired (405). Returns its container URL and
+ * its `/meta` URL. Every Collection Metadata test works on its own
+ * Collection, so the `metaVersion` sequence a test observes is its own.
+ *
+ * @param options {object}
+ * @param options.ctx {any}   the test context (for `serverUrl` / `generateId` / `skip`)
+ * @param options.alice {any}   the suite's root actor
+ * @returns {Promise<{collectionUrl: string, metaUrl: string}>}
+ */
+async function freshCollection({
+  ctx,
+  alice
+}: {
+  ctx: any
+  alice: any
+}): Promise<{ collectionUrl: string; metaUrl: string }> {
+  const collectionId = ctx.generateId()
+  const collectionUrl = new URL(
+    `/space/${alice.space1.id}/${collectionId}`,
+    ctx.serverUrl
+  ).toString()
+  const metaUrl = `${collectionUrl}/meta`
+  await metaRequestOrSkip({
+    ctx,
+    alice,
+    url: metaUrl,
+    method: 'PUT',
+    json: { id: collectionId, name: 'Metadata Collection' }
+  })
+  return { collectionUrl, metaUrl }
+}
+
 export const collectionApi: Suite<State> = {
   id: 'collection-api',
   name: 'Collections API',
@@ -149,7 +153,7 @@ export const collectionApi: Suite<State> = {
     const { alice } = state
     try {
       await alice.rootClient.request({
-        url: new URL(`/space/${alice.space1.id}`, ctx.serverUrl).toString(),
+        url: new URL(`/space/${alice.space1.id}/`, ctx.serverUrl).toString(),
         method: 'DELETE'
       })
     } catch {
@@ -192,12 +196,15 @@ export const collectionApi: Suite<State> = {
           '/space/space-id-that-does-not-exist/',
           serverUrl
         ).toString()
+        // A body is required so the request reaches the existence check
+        // rather than failing body validation first.
         let expectedError: any
         try {
           await alice.rootClient.request({
             url: spaceUrl,
             method: 'POST',
-            action: 'POST'
+            action: 'POST',
+            json: { name: 'Probe Collection' }
           })
         } catch (err) {
           expectedError = err
@@ -226,16 +233,19 @@ export const collectionApi: Suite<State> = {
           json: body
         })
         assert.equal(response.status, 201)
+        // The Collection's `url` is stamped in its canonical trailing-slash
+        // (container) form, matching a subsequent Read Collection Metadata.
         assert.deepStrictEqual(withoutCreatedBy(response.data), {
           id: 'credentials',
           name: 'Verifiable Credentials',
           type: ['Collection'],
-          backend: { id: 'default' }
+          backend: { id: 'default' },
+          url: `/space/${alice.space1.id}/credentials/`
         })
         assert.match(response.headers.get('content-type'), /application\/json/)
         assert.equal(
           response.headers.get('location'),
-          `${serverUrl}/space/${alice.space1.id}/${body.id}`
+          `${serverUrl}/space/${alice.space1.id}/${body.id}/`
         )
       }
     },
@@ -286,7 +296,9 @@ export const collectionApi: Suite<State> = {
         assert.equal(response.status, 200)
         const listResponse = response.data
         assert.equal(listResponse.id, 'credentials')
-        assert.equal(listResponse.url, `/space/${alice.space1.id}/credentials`)
+        // The listing envelope's own `url` carries the trailing slash (spec
+        // "Reading This Document": a trailing slash marks a container).
+        assert.equal(listResponse.url, `/space/${alice.space1.id}/credentials/`)
         assert.equal(listResponse.name, 'Verifiable Credentials')
         assert.deepStrictEqual(listResponse.type, ['Collection'])
         assert.equal(typeof listResponse.totalItems, 'number')
@@ -295,31 +307,118 @@ export const collectionApi: Suite<State> = {
       }
     },
     {
-      id: 'collection.read-description',
-      name: '[root] get collection description via GET :collectionId',
+      id: 'collection.read-metadata',
+      name: '[root] get the Collection Metadata object via GET :collectionId/meta',
       specRefs: [
-        'https://wallet.storage/spec#get-collection-description-operation'
+        'https://wallet.storage/spec#read-collection-metadata-operation',
+        'https://wallet.storage/spec#collection-metadata-data-model'
       ],
       run: async (ctx, state) => {
         const { serverUrl, withoutCreatedBy } = ctx
         const { alice } = state
-        const response = await alice.rootClient.request({
+        // v0.5 retires the bare-URL Collection description; reading a
+        // Collection's description is now always a GET of `meta`.
+        const response = await metaRequestOrSkip({
+          ctx,
+          alice,
           url: new URL(
-            `/space/${alice.space1.id}/credentials`,
+            `/space/${alice.space1.id}/credentials/meta`,
             serverUrl
           ).toString(),
-          method: 'GET',
-          action: 'GET'
+          method: 'GET'
         })
         assert.equal(response.status, 200)
-        assert.deepStrictEqual(withoutCreatedBy(response.data), {
+        const { createdAt, updatedAt, ...rest } = withoutCreatedBy(
+          response.data
+        ) as any
+        assert.ok(!Number.isNaN(Date.parse(createdAt)))
+        assert.ok(!Number.isNaN(Date.parse(updatedAt)))
+        assert.deepStrictEqual(rest, {
           id: 'credentials',
           name: 'Verifiable Credentials',
           type: ['Collection'],
           backend: { id: 'default' },
-          url: `/space/${alice.space1.id}/credentials`,
+          url: `/space/${alice.space1.id}/credentials/`,
           linkset: `/space/${alice.space1.id}/credentials/linkset`
         })
+      }
+    },
+    {
+      id: 'collection.non-canonical-url-redirects',
+      name:
+        '[root] the non-canonical (no-slash) Collection URL 308s to the ' +
+        'canonical (trailing-slash) form; the canonical form is not redirected',
+      optional: true,
+      specRefs: ['https://wallet.storage/spec#reading-this-document'],
+      run: async (ctx, state) => {
+        const { serverUrl } = ctx
+        const { alice } = state
+        const bareUrl = new URL(
+          `/space/${alice.space1.id}/credentials`,
+          serverUrl
+        )
+        const canonicalPath = `/space/${alice.space1.id}/credentials/`
+
+        const redirected = await fetch(bareUrl, {
+          method: 'GET',
+          redirect: 'manual'
+        })
+        if (redirected.type === 'opaqueredirect') {
+          ctx.skip(
+            'redirect responses are opaque in this runtime (cross-origin fetch)'
+          )
+        }
+        assert.equal(redirected.status, 308)
+        const location = redirected.headers.get('location')
+        assert.ok(location, 'expected a Location header on the redirect')
+        assert.equal(new URL(location, serverUrl).pathname, canonicalPath)
+
+        // The canonical form itself is never redirected -- whatever it
+        // answers (200, 401, 404...) it is not a 308.
+        const canonical = await fetch(new URL(canonicalPath, serverUrl), {
+          method: 'GET',
+          redirect: 'manual'
+        })
+        assert.notEqual(canonical.status, 308)
+      }
+    },
+    {
+      id: 'collection.put-container-405',
+      name:
+        '[root] PUT at the canonical Collection URL is 405 (PUT is not ' +
+        'defined at the container)',
+      specRefs: ['https://wallet.storage/spec#collection-metadata-data-model'],
+      run: async (ctx, state) => {
+        const { serverUrl } = ctx
+        const { alice } = state
+        let expectedError: any
+        try {
+          await alice.rootClient.request({
+            url: new URL(
+              `/space/${alice.space1.id}/credentials/`,
+              serverUrl
+            ).toString(),
+            method: 'PUT',
+            action: 'PUT',
+            json: { name: 'Should Not Replace' }
+          })
+        } catch (err) {
+          expectedError = err
+        }
+        assert.ok(
+          expectedError,
+          'expected a PUT at the Collection container URL to be refused'
+        )
+        assert.equal(expectedError.response.status, 405)
+        const allow = (expectedError.response.headers.get('allow') ?? '')
+          .split(',')
+          .map((method: string) => method.trim())
+          .filter(Boolean)
+        assert.ok(!allow.includes('PUT'), 'Allow must not include PUT')
+        assert.match(
+          expectedError.response.headers.get('content-type'),
+          /application\/problem\+json/
+        )
       }
     },
     {
@@ -335,10 +434,13 @@ export const collectionApi: Suite<State> = {
         // Fresh Collection seeded with > one page of Resources, inserted out of order
         // to prove the listing order is by id, not insertion.
         const collectionId = generateId()
-        // WAS does not auto-create parent Collections, so provision it first.
-        await alice.rootClient.request({
+        // WAS does not auto-create parent Collections, so provision it first
+        // (create-by-id is a guarded `PUT` of its Metadata object).
+        await metaRequestOrSkip({
+          ctx,
+          alice,
           url: new URL(
-            `/space/${alice.space1.id}/${collectionId}`,
+            `/space/${alice.space1.id}/${collectionId}/meta`,
             serverUrl
           ).toString(),
           method: 'PUT',
@@ -424,29 +526,34 @@ export const collectionApi: Suite<State> = {
           `/space/${alice.space1.id}/${collectionId}`,
           serverUrl
         ).toString()
+        const metaUrl = `${collectionUrl}/meta`
         const body = { id: collectionId, name: 'New Collection' }
 
-        await alice.rootClient.request({
-          url: collectionUrl,
+        const created = await metaRequestOrSkip({
+          ctx,
+          alice,
+          url: metaUrl,
           method: 'PUT',
           json: body
         })
+        assert.equal(created.status, 201)
 
         const existResponse = await alice.rootClient.request({
-          url: collectionUrl,
+          url: metaUrl,
           method: 'GET'
         })
         assert.equal(existResponse.status, 200)
 
+        // Delete Collection is at the canonical (trailing-slash) container URL.
         const deleteResponse = await alice.rootClient.request({
-          url: collectionUrl,
+          url: `${collectionUrl}/`,
           method: 'DELETE'
         })
         assert.equal(deleteResponse.status, 204)
 
         let checkResponse: any
         try {
-          await alice.rootClient.request({ url: collectionUrl, method: 'GET' })
+          await alice.rootClient.request({ url: metaUrl, method: 'GET' })
         } catch (err: any) {
           checkResponse = err.response
         }
@@ -495,6 +602,43 @@ export const collectionApi: Suite<State> = {
       }
     },
     {
+      id: 'collection.create-post-meta-reserved-id-409',
+      name:
+        '[root] creating a Collection with the reserved id `meta` via POST ' +
+        'is rejected with 409 reserved-id',
+      specRefs: [
+        'https://wallet.storage/spec#space-level-reserved-endpoints',
+        'https://wallet.storage/spec#reserved-id'
+      ],
+      run: async (ctx, state) => {
+        const { serverUrl } = ctx
+        const { alice } = state
+        // `meta` occupies the Space Metadata object's own path
+        // (`/space/{s}/meta`), so it is a reserved Collection id -- v0.5
+        // widens the Space-level reserved-endpoint table to include it.
+        let expectedError: any
+        try {
+          await alice.rootClient.request({
+            url: new URL(`/space/${alice.space1.id}/`, serverUrl).toString(),
+            method: 'POST',
+            action: 'POST',
+            json: { id: 'meta', name: 'Reserved Meta Collection Id Probe' }
+          })
+        } catch (err) {
+          expectedError = err
+        }
+        assert.ok(
+          expectedError,
+          'expected the `meta` Collection id to be rejected'
+        )
+        assert.equal(expectedError.response.status, 409)
+        assert.equal(
+          expectedError.data.type,
+          'https://wallet.storage/spec#reserved-id'
+        )
+      }
+    },
+    {
       id: 'collection.paginate-delegated-no-redelegation',
       name:
         '[delegated] a single list capability reads every page; no per-page ' +
@@ -509,9 +653,11 @@ export const collectionApi: Suite<State> = {
         const aliceDelegatedApp = ctx.actors.aliceDelegatedApp
         // Seed a fresh Collection with more than one page of Resources.
         const collectionId = generateId()
-        await alice.rootClient.request({
+        await metaRequestOrSkip({
+          ctx,
+          alice,
           url: new URL(
-            `/space/${alice.space1.id}/${collectionId}`,
+            `/space/${alice.space1.id}/${collectionId}/meta`,
             serverUrl
           ).toString(),
           method: 'PUT',
@@ -621,7 +767,7 @@ export const collectionApi: Suite<State> = {
       name: '[root] PUT Collection Metadata sets `custom`, round-tripped by GET',
       group: 'Collection Metadata',
       specRefs: [
-        'https://wallet.storage/spec#update-collection-metadata-operation',
+        'https://wallet.storage/spec#update-or-create-by-id-collection-operation',
         'https://wallet.storage/spec#read-collection-metadata-operation'
       ],
       run: async (ctx, state) => {
@@ -669,7 +815,7 @@ export const collectionApi: Suite<State> = {
         '`custom` clears it',
       group: 'Collection Metadata',
       specRefs: [
-        'https://wallet.storage/spec#update-collection-metadata-operation'
+        'https://wallet.storage/spec#update-or-create-by-id-collection-operation'
       ],
       run: async (ctx, state) => {
         const { alice } = state
@@ -716,7 +862,7 @@ export const collectionApi: Suite<State> = {
         'members (read-modify-write is safe)',
       group: 'Collection Metadata',
       specRefs: [
-        'https://wallet.storage/spec#update-collection-metadata-operation',
+        'https://wallet.storage/spec#update-or-create-by-id-collection-operation',
         'https://wallet.storage/spec#collection-metadata-data-model'
       ],
       run: async (ctx, state) => {
@@ -765,47 +911,44 @@ export const collectionApi: Suite<State> = {
       }
     },
     {
-      id: 'collection.meta-put-missing-collection-404',
+      id: 'collection.meta-put-creates-missing-collection',
       name:
-        '[root] PUT Collection Metadata on a nonexistent Collection 404s ' +
-        '(never creates)',
+        '[root] PUT Collection Metadata on a nonexistent Collection creates ' +
+        'it (201), the `Location` naming the Collection',
       group: 'Collection Metadata',
       specRefs: [
-        'https://wallet.storage/spec#update-collection-metadata-operation',
-        'https://wallet.storage/spec#not-found'
+        'https://wallet.storage/spec#update-or-create-by-id-collection-operation'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice } = state
-        // Probe first, so an unimplemented server skips rather than passing on
-        // an unrelated 404.
-        const { metaUrl } = await freshCollection({ ctx, alice })
-        await metaRequestOrSkip({ ctx, alice, url: metaUrl, method: 'GET' })
-
-        const missingMetaUrl = new URL(
-          `/space/${alice.space1.id}/collection-that-does-not-exist/meta`,
+        const collectionId = ctx.generateId()
+        const collectionUrl = new URL(
+          `/space/${alice.space1.id}/${collectionId}`,
           serverUrl
         ).toString()
-        let expectedError: any
-        try {
-          await alice.rootClient.request({
-            url: missingMetaUrl,
-            method: 'PUT',
-            action: 'PUT',
-            json: { custom: { name: 'nope' } }
-          })
-        } catch (err) {
-          expectedError = err
-        }
-        assert.ok(
-          expectedError,
-          'expected a metadata write on a missing Collection to be rejected'
-        )
-        assert.equal(expectedError.response.status, 404)
-        assert.match(
-          expectedError.response.headers.get('content-type'),
-          /application\/problem\+json/
-        )
+        const metaUrl = `${collectionUrl}/meta`
+        const response = await metaRequestOrSkip({
+          ctx,
+          alice,
+          url: metaUrl,
+          method: 'PUT',
+          json: { custom: { name: 'Created via meta' } }
+        })
+        assert.equal(response.status, 201)
+        // `Location` names the Collection created, in its canonical
+        // trailing-slash form -- not the Metadata object that was written.
+        assert.equal(response.headers.get('location'), `${collectionUrl}/`)
+
+        const created = await alice.rootClient.request({
+          url: metaUrl,
+          method: 'GET'
+        })
+        assert.equal(created.status, 200)
+        assert.equal(created.data.id, collectionId)
+        assert.deepStrictEqual(created.data.custom, {
+          name: 'Created via meta'
+        })
       }
     },
     {
@@ -815,7 +958,7 @@ export const collectionApi: Suite<State> = {
         'rejected with 400 invalid-request-body',
       group: 'Collection Metadata',
       specRefs: [
-        'https://wallet.storage/spec#update-collection-metadata-operation',
+        'https://wallet.storage/spec#update-or-create-by-id-collection-operation',
         'https://wallet.storage/spec#invalid-request-body'
       ],
       run: async (ctx, state) => {
@@ -851,7 +994,7 @@ export const collectionApi: Suite<State> = {
         'one succeeds',
       group: 'Collection Metadata',
       specRefs: [
-        'https://wallet.storage/spec#update-collection-metadata-operation',
+        'https://wallet.storage/spec#update-or-create-by-id-collection-operation',
         'https://wallet.storage/spec#conditional-requests',
         'https://wallet.storage/spec#precondition-failed'
       ],
@@ -917,84 +1060,79 @@ export const collectionApi: Suite<State> = {
       }
     },
     {
-      id: 'collection.meta-etag-independent-of-description',
+      id: 'collection.meta-configuration-and-annotation-share-etag',
       name:
-        '[root] the Collection Metadata ETag is independent of the Collection ' +
-        'Description ETag',
+        '[root] a configuration write and an annotation write on Collection ' +
+        'Metadata advance the same ETag',
       group: 'Collection Metadata',
       specRefs: [
-        'https://wallet.storage/spec#collection-metadata-data-model',
+        'https://wallet.storage/spec#collection-metadata-versioning',
         'https://wallet.storage/spec#conditional-requests'
       ],
       run: async (ctx, state) => {
         const { alice } = state
-        const { collectionUrl, metaUrl } = await freshCollection({ ctx, alice })
-        const described = await alice.rootClient.request({
-          url: collectionUrl,
-          method: 'GET'
-        })
-        const descriptionEtag = described.headers.get('etag')
-        if (!descriptionEtag) {
-          ctx.skip('server does not emit an ETag on the Collection Description')
-        }
-
-        // A metadata write does not disturb the description validator...
-        await metaRequestOrSkip({
+        // v0.5 merges what used to be two independent validators (the
+        // Collection description's and the `/meta` annotation object's) into
+        // the one Collection Metadata object's `metaVersion`, so a
+        // configuration write and an annotation write now advance the SAME
+        // ETag rather than independent ones.
+        const { metaUrl } = await freshCollection({ ctx, alice })
+        const created = await metaRequestOrSkip({
           ctx,
           alice,
           url: metaUrl,
-          method: 'PUT',
-          json: { custom: { name: 'Independent' } }
-        })
-        const afterMeta = await alice.rootClient.request({
-          url: collectionUrl,
           method: 'GET'
         })
-        assert.equal(afterMeta.headers.get('etag'), descriptionEtag)
-        const metaEtag = (
-          await alice.rootClient.request({ url: metaUrl, method: 'GET' })
-        ).headers.get('etag')
+        const createdEtag = created.headers.get('etag')
+        assert.ok(createdEtag, 'expected an ETag on Collection Metadata')
 
-        // ...and a description write does not disturb the metadata validator.
-        await alice.rootClient.request({
-          url: collectionUrl,
+        // An annotation write advances the one validator...
+        const annotated = await alice.rootClient.request({
+          url: metaUrl,
           method: 'PUT',
           action: 'PUT',
-          json: {
-            id: described.data.id,
-            type: ['Collection'],
-            name: 'Renamed'
-          }
+          json: { name: 'Metadata Collection', custom: { name: 'Shared' } }
         })
-        const afterDescription = await alice.rootClient.request({
-          url: collectionUrl,
-          method: 'GET'
+        const annotatedEtag = annotated.headers.get('etag')
+        assert.notEqual(annotatedEtag, createdEtag)
+
+        // ...and so does a configuration write (renaming the plaintext
+        // `name` is a configuration member, not an annotation).
+        const configured = await alice.rootClient.request({
+          url: metaUrl,
+          method: 'PUT',
+          action: 'PUT',
+          json: { name: 'Renamed Collection', custom: { name: 'Shared' } }
         })
-        assert.notEqual(afterDescription.headers.get('etag'), descriptionEtag)
-        const metaAfter = await alice.rootClient.request({
+        const configuredEtag = configured.headers.get('etag')
+        assert.notEqual(configuredEtag, annotatedEtag)
+
+        const meta = await alice.rootClient.request({
           url: metaUrl,
           method: 'GET'
         })
-        assert.equal(metaAfter.headers.get('etag'), metaEtag)
-        assert.deepStrictEqual(metaAfter.data.custom, { name: 'Independent' })
+        assert.equal(meta.headers.get('etag'), configuredEtag)
+        assert.equal(meta.data.name, 'Renamed Collection')
+        assert.deepStrictEqual(meta.data.custom, { name: 'Shared' })
       }
     },
     {
-      id: 'collection.meta-reserved-resource-id-409',
+      id: 'collection.meta-delete-405-not-reserved-id',
       name:
-        '[root] `meta` is a reserved Resource id where Collection Metadata is ' +
-        'implemented (409 reserved-id)',
+        '[root] DELETE at the Collection Metadata URL is 405 with an Allow ' +
+        'header, not a reserved-id 409',
       group: 'Collection Metadata',
       specRefs: [
-        'https://wallet.storage/spec#reserved-path-segment-registry',
-        'https://wallet.storage/spec#reserved-id'
+        'https://wallet.storage/spec#collection-metadata-data-model',
+        'https://wallet.storage/spec#methods-at-reserved-endpoints'
       ],
       run: async (ctx, state) => {
         const { alice } = state
-        // The Collection Metadata route occupies the `{resourceId}` position, so
-        // a Resource may not be named `meta`. The GET/PUT verbs at that URL are
-        // the Metadata operations themselves; DELETE falls through to the
-        // Resource route, where the reserved-id check rejects it.
+        // `meta` occupies the Collection's `:resourceId` position, so `meta`
+        // is a reserved Resource id -- but there is no DELETE defined at
+        // `meta` (spec "Lifecycle": deleting the Collection removes its
+        // Metadata object with it), so v0.5's Methods at Reserved Endpoints
+        // rule answers 405 here, never the reserved-id 409.
         const { metaUrl } = await freshCollection({ ctx, alice })
         await metaRequestOrSkip({ ctx, alice, url: metaUrl, method: 'GET' })
 
@@ -1010,16 +1148,98 @@ export const collectionApi: Suite<State> = {
         }
         assert.ok(
           expectedError,
-          'expected a Resource named `meta` to be rejected'
+          'expected a DELETE at the Collection Metadata URL to be refused'
         )
-        if (expectedError.response.status === 405) {
-          ctx.skip('server does not route DELETE at the Collection /meta URL')
-        }
-        assert.equal(expectedError.response.status, 409)
-        assert.equal(
+        assert.equal(expectedError.response.status, 405)
+        const allow = (expectedError.response.headers.get('allow') ?? '')
+          .split(',')
+          .map((method: string) => method.trim())
+          .filter(Boolean)
+        assert.ok(!allow.includes('DELETE'), 'Allow must not include DELETE')
+        assert.equal(expectedError.data.type, 'about:blank')
+        assert.notEqual(
           expectedError.data.type,
           'https://wallet.storage/spec#reserved-id'
         )
+      }
+    },
+    {
+      id: 'collection.meta-update-omits-backend-keeps-selection',
+      name:
+        '[root] a Collection Metadata update omitting `backend` keeps the ' +
+        'stored selection',
+      group: 'Collection Metadata',
+      // Proving retention (rather than a no-op default-to-default) needs a
+      // genuinely non-default backend, which requires the reference server's
+      // backend-registration write endpoint -- a facility the spec does not
+      // define the wire contract of (only `GET .../backends` is spec'd).
+      // Skip gracefully wherever that facility, or Collection Metadata
+      // itself, is unavailable.
+      optional: true,
+      specRefs: [
+        'https://wallet.storage/spec#update-or-create-by-id-collection-operation',
+        'https://wallet.storage/spec#collection-metadata-data-model'
+      ],
+      run: async (ctx, state) => {
+        const { serverUrl, generateId } = ctx
+        const { alice } = state
+        const backendId = generateId()
+        try {
+          await alice.rootClient.request({
+            url: new URL(
+              `/space/${alice.space1.id}/backends`,
+              serverUrl
+            ).toString(),
+            method: 'POST',
+            action: 'POST',
+            json: {
+              id: backendId,
+              provider: 'google-drive',
+              connection: {
+                kind: 'oauth2-google',
+                authorizationCode: 'probe-code'
+              }
+            }
+          })
+        } catch {
+          ctx.skip(
+            'server does not support registering a non-default backend ' +
+              '(reference-server extension, not spec-defined)'
+          )
+        }
+
+        const collectionId = generateId()
+        const collectionUrl = new URL(
+          `/space/${alice.space1.id}/${collectionId}`,
+          serverUrl
+        ).toString()
+        await alice.rootClient.request({
+          url: new URL(`/space/${alice.space1.id}/`, serverUrl).toString(),
+          method: 'POST',
+          action: 'POST',
+          json: {
+            id: collectionId,
+            name: 'Backend Retention Probe',
+            backend: { id: backendId }
+          }
+        })
+        const metaUrl = `${collectionUrl}/meta`
+
+        // An update that omits `backend` must keep the stored selection, not
+        // reset it to the default (spec "Update Collection": "Clearing it
+        // would repoint the Collection at the default backend").
+        await metaRequestOrSkip({
+          ctx,
+          alice,
+          url: metaUrl,
+          method: 'PUT',
+          json: { name: 'Renamed, backend omitted' }
+        })
+        const after = await alice.rootClient.request({
+          url: metaUrl,
+          method: 'GET'
+        })
+        assert.deepStrictEqual(after.data.backend, { id: backendId })
       }
     }
   ]

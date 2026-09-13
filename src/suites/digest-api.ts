@@ -75,7 +75,7 @@ export const digestApi: Suite<State> = {
     const { alice } = state
     try {
       await alice.rootClient.request({
-        url: new URL(`/space/${alice.space1.id}`, ctx.serverUrl).toString(),
+        url: new URL(`/space/${alice.space1.id}/`, ctx.serverUrl).toString(),
         method: 'DELETE'
       })
     } catch {

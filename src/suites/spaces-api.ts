@@ -120,6 +120,31 @@ function failureDetail(problem: any): string {
 }
 
 /**
+ * The Space container URL, in its v0.5 canonical (trailing-slash) form: lists
+ * Collections (`GET`), adds one (`POST`), and removes the Space (`DELETE`).
+ *
+ * @param serverUrl {string}
+ * @param spaceId {string}
+ * @returns {string}
+ */
+function spaceUrl(serverUrl: string, spaceId: string): string {
+  return new URL(`/space/${spaceId}/`, serverUrl).toString()
+}
+
+/**
+ * The Space Metadata object URL (spec "Space Metadata Data Model"): where
+ * Read Space and Update (or Create by Id) Space now live, since v0.5 moved
+ * them off the bare (no-slash) Space URL.
+ *
+ * @param serverUrl {string}
+ * @param spaceId {string}
+ * @returns {string}
+ */
+function spaceMetaUrl(serverUrl: string, spaceId: string): string {
+  return new URL(`/space/${spaceId}/meta`, serverUrl).toString()
+}
+
+/**
  * Asserts the Space at `spaceId` was never created: its named controller
  * (Alice) could read it if it had been, so her authorized read must 404.
  *
@@ -141,7 +166,7 @@ async function assertSpaceNotCreated({
   let checkError: any
   try {
     await alice.rootClient.request({
-      url: new URL(`/space/${spaceId}`, ctx.serverUrl).toString(),
+      url: spaceMetaUrl(ctx.serverUrl, spaceId),
       method: 'GET'
     })
   } catch (err) {
@@ -182,7 +207,7 @@ export const spacesApi: Suite<State> = {
     for (const spaceId of [alice.space1.id, alice.space2.id, alice.space3.id]) {
       try {
         await alice.rootClient.request({
-          url: new URL(`/space/${spaceId}`, ctx.serverUrl).toString(),
+          url: spaceUrl(ctx.serverUrl, spaceId),
           method: 'DELETE'
         })
       } catch {
@@ -210,7 +235,7 @@ export const spacesApi: Suite<State> = {
 
         await alice.rootClient.request({
           url: new URL(
-            `/space/${alice.space3.id}/${state.collectionId}`,
+            `/space/${alice.space3.id}/${state.collectionId}/meta`,
             ctx.serverUrl
           ).toString(),
           method: 'PUT',
@@ -281,14 +306,16 @@ export const spacesApi: Suite<State> = {
             (item: any) => item.id === alice.space1.id
           )
           assert.ok(aliceItem, "Alice's listing includes her pre-created space")
-          assert.equal(aliceItem.url, `/space/${alice.space1.id}`)
+          // A Space is a container, so its listed `url` carries the
+          // canonical trailing slash (spec "Space Metadata Data Model").
+          assert.equal(aliceItem.url, `/space/${alice.space1.id}/`)
           assert.ok(
             !listing.items.some((item: any) => item.id === bobSpaceId),
             "Alice's listing must not reveal Bob's space"
           )
         } finally {
           await bob.rootClient.request({
-            url: new URL(`/space/${bobSpaceId}`, serverUrl).toString(),
+            url: spaceUrl(serverUrl, bobSpaceId),
             method: 'DELETE'
           })
         }
@@ -398,7 +425,7 @@ export const spacesApi: Suite<State> = {
         let checkError: any
         try {
           await alice.rootClient.request({
-            url: new URL(`/space/${spaceId}`, serverUrl).toString(),
+            url: spaceMetaUrl(serverUrl, spaceId),
             method: 'GET'
           })
         } catch (err) {
@@ -558,7 +585,6 @@ export const spacesApi: Suite<State> = {
         })
 
         const spaceId = generateId()
-        const spaceUrl = new URL(`/space/${spaceId}`, serverUrl).toString()
         try {
           const response = await aliceAppClient.request({
             url: spacesUrl,
@@ -576,7 +602,7 @@ export const spacesApi: Suite<State> = {
 
           // The Space exists and is controlled by Alice: her root key reads it.
           const checkResponse = await alice.rootClient.request({
-            url: spaceUrl,
+            url: spaceMetaUrl(serverUrl, spaceId),
             method: 'GET',
             action: 'GET'
           })
@@ -584,7 +610,10 @@ export const spacesApi: Suite<State> = {
           assert.equal(checkResponse.data.controller, alice.did)
         } finally {
           try {
-            await alice.rootClient.request({ url: spaceUrl, method: 'DELETE' })
+            await alice.rootClient.request({
+              url: spaceUrl(serverUrl, spaceId),
+              method: 'DELETE'
+            })
           } catch {
             /* best-effort cleanup */
           }
@@ -780,21 +809,24 @@ export const spacesApi: Suite<State> = {
           rootClient: alice.rootClient
         })
         assert.equal(response.status, 201)
+        // The container `url` is the canonical trailing-slash form (spec
+        // "Space Metadata Data Model").
         assert.deepStrictEqual(withoutCreatedBy(response.data), {
           id: freshSpaceId,
           name: 'Conformance Test Space',
           type: ['Space'],
-          controller: alice.did
+          controller: alice.did,
+          url: `/space/${freshSpaceId}/`
         })
         assert.match(response.headers.get('content-type')!, /application\/json/)
         assert.equal(
           response.headers.get('location'),
-          `${serverUrl}/spaces/${freshSpaceId}`
+          spaceUrl(serverUrl, freshSpaceId)
         )
 
         // Clean up the space created by this test
         await alice.rootClient.request({
-          url: new URL(`/space/${freshSpaceId}`, serverUrl).toString(),
+          url: spaceUrl(serverUrl, freshSpaceId),
           method: 'DELETE'
         })
       }
@@ -832,7 +864,7 @@ export const spacesApi: Suite<State> = {
     },
     {
       id: 'space.create-put',
-      name: '[root] create space by id via PUT',
+      name: '[root] create space by id via PUT of its Space Metadata object',
       group: 'Space API',
       specRefs: [
         'https://wallet.storage/spec#update-or-create-by-id-space-operation'
@@ -845,20 +877,21 @@ export const spacesApi: Suite<State> = {
           name: "Alice's Space #2 (School)",
           controller: alice.did
         }
-        const spaceUrl = new URL(
-          `/space/${alice.space2.id}`,
-          serverUrl
-        ).toString()
+        // The `Location` names the Space container, not the Metadata object
+        // that was written (spec "Update (or Create by Id) Space Operation").
         const response = await alice.rootClient.request({
-          url: spaceUrl,
+          url: spaceMetaUrl(serverUrl, alice.space2.id),
           method: 'PUT',
           json: spaceDescription
         })
 
-        assert.equal(response.headers.get('location'), spaceUrl)
+        assert.equal(
+          response.headers.get('location'),
+          spaceUrl(serverUrl, alice.space2.id)
+        )
 
         const checkResponse = await alice.rootClient.request({
-          url: spaceUrl,
+          url: spaceMetaUrl(serverUrl, alice.space2.id),
           method: 'GET'
         })
         assert.equal(checkResponse.status, 200)
@@ -890,12 +923,12 @@ export const spacesApi: Suite<State> = {
           rootClient: alice.rootClient
         })
 
-        const spaceUrl = new URL(`/space/${spaceId}`, serverUrl).toString()
+        const metaUrl = spaceMetaUrl(serverUrl, spaceId)
         try {
           let expectedError: any
           try {
             await bob.rootClient.request({
-              url: spaceUrl,
+              url: metaUrl,
               method: 'PUT',
               action: 'PUT',
               json: {
@@ -921,7 +954,7 @@ export const spacesApi: Suite<State> = {
           // The operation must not have been performed: Alice still controls
           // the Space, name and controller unchanged.
           const checkResponse = await alice.rootClient.request({
-            url: spaceUrl,
+            url: metaUrl,
             method: 'GET'
           })
           assert.equal(checkResponse.status, 200)
@@ -929,7 +962,10 @@ export const spacesApi: Suite<State> = {
           assert.equal(checkResponse.data.name, 'Escalation Target Space')
         } finally {
           try {
-            await alice.rootClient.request({ url: spaceUrl, method: 'DELETE' })
+            await alice.rootClient.request({
+              url: spaceUrl(serverUrl, spaceId),
+              method: 'DELETE'
+            })
           } catch {
             /* best-effort cleanup */
           }
@@ -965,12 +1001,12 @@ export const spacesApi: Suite<State> = {
           rootClient: alice.rootClient
         })
 
-        const spaceUrl = new URL(`/space/${spaceId}`, serverUrl).toString()
+        const metaUrl = spaceMetaUrl(serverUrl, spaceId)
         try {
           let expectedError: any
           try {
             await alice.rootClient.request({
-              url: spaceUrl,
+              url: metaUrl,
               method: 'PUT',
               action: 'PUT',
               json: {
@@ -997,14 +1033,17 @@ export const spacesApi: Suite<State> = {
           )
 
           const checkResponse = await alice.rootClient.request({
-            url: spaceUrl,
+            url: metaUrl,
             method: 'GET'
           })
           assert.equal(checkResponse.status, 200)
           assert.equal(checkResponse.data.controller, alice.did)
         } finally {
           try {
-            await alice.rootClient.request({ url: spaceUrl, method: 'DELETE' })
+            await alice.rootClient.request({
+              url: spaceUrl(serverUrl, spaceId),
+              method: 'DELETE'
+            })
           } catch {
             /* best-effort cleanup */
           }
@@ -1013,7 +1052,7 @@ export const spacesApi: Suite<State> = {
     },
     {
       id: 'space.anonymous-read-404',
-      name: 'GET a space with no auth headers falls through to policy and 404s (no public policy)',
+      name: 'GET /space/:spaceId/meta with no auth headers falls through to policy and 404s (no public policy)',
       group: 'Space API',
       specRefs: [
         'https://wallet.storage/spec#read-space-operation',
@@ -1024,11 +1063,9 @@ export const spacesApi: Suite<State> = {
         const { alice } = state
         // Reads no longer 401 at the hook: an anonymous read is allowed to
         // attempt, and is denied as 404 (no-leak) when no policy grants it.
-        const spaceUrl = new URL(
-          `/space/${alice.space1.id}`,
-          serverUrl
-        ).toString()
-        const response = await fetch(spaceUrl, { method: 'GET' })
+        const response = await fetch(spaceMetaUrl(serverUrl, alice.space1.id), {
+          method: 'GET'
+        })
         assert.equal(response.status, 404)
         assert.match(
           response.headers.get('content-type')!,
@@ -1037,8 +1074,78 @@ export const spacesApi: Suite<State> = {
       }
     },
     {
+      id: 'space.noncanonical-redirect-308',
+      name: '[root] the non-canonical Space URL 308s to the canonical trailing-slash form; the canonical form is not redirected',
+      group: 'Space API',
+      optional: true,
+      specRefs: ['https://wallet.storage/spec#reading-this-document'],
+      run: async (ctx, state) => {
+        const { serverUrl } = ctx
+        const { alice } = state
+        const bareUrl = new URL(
+          `/space/${alice.space1.id}`,
+          serverUrl
+        ).toString()
+        const canonicalUrl = spaceUrl(serverUrl, alice.space1.id)
+        const canonicalPath = `/space/${alice.space1.id}/`
+        // Asserted for more than one method, so a server that serves both
+        // forms without redirecting does not pass by accident.
+        for (const method of ['GET', 'HEAD']) {
+          const response = await fetch(bareUrl, { method, redirect: 'manual' })
+          assert.equal(
+            response.status,
+            308,
+            `expected a 308 for ${method} on the non-canonical Space URL`
+          )
+          assert.equal(response.headers.get('location'), canonicalPath)
+        }
+        // The canonical form itself is not redirected.
+        const canonicalResponse = await fetch(canonicalUrl, {
+          method: 'GET',
+          redirect: 'manual'
+        })
+        assert.notEqual(canonicalResponse.status, 308)
+      }
+    },
+    {
+      id: 'space.put-container-405',
+      name: '[root] PUT /space/:spaceId/ (the container URL) is refused with 405 and an Allow header that excludes PUT',
+      group: 'Space API',
+      specRefs: ['https://wallet.storage/spec#space-metadata-data-model'],
+      run: async (ctx, state) => {
+        const { serverUrl } = ctx
+        const { alice } = state
+        let expectedError: any
+        try {
+          await alice.rootClient.request({
+            url: spaceUrl(serverUrl, alice.space1.id),
+            method: 'PUT',
+            action: 'PUT',
+            json: { name: 'Attempted Container Replacement' }
+          })
+        } catch (err) {
+          expectedError = err
+        }
+        assert.ok(
+          expectedError,
+          'expected a PUT at the Space container URL to be refused'
+        )
+        assert.equal(expectedError.response.status, 405)
+        const allow = (expectedError.response.headers.get('allow') ?? '')
+          .split(',')
+          .map((method: string) => method.trim())
+          .filter(Boolean)
+        assert.ok(allow.length > 0, 'expected a non-empty Allow header')
+        assert.ok(
+          !allow.includes('PUT'),
+          'the Allow header must not include PUT: a container is described ' +
+            'at its "meta" sub-resource'
+        )
+      }
+    },
+    {
       id: 'space.read-missing-404',
-      name: 'GET /space/:spaceId should 404 error on not found space id',
+      name: 'GET /space/:spaceId/meta should 404 error on not found space id',
       group: 'Space API',
       specRefs: [
         'https://wallet.storage/spec#read-space-operation',
@@ -1047,14 +1154,10 @@ export const spacesApi: Suite<State> = {
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice } = state
-        const spaceUrl = new URL(
-          '/space/space-id-that-does-not-exist',
-          serverUrl
-        ).toString()
         let expectedError: any
         try {
           await alice.rootClient.request({
-            url: spaceUrl,
+            url: spaceMetaUrl(serverUrl, 'space-id-that-does-not-exist'),
             method: 'GET',
             action: 'GET'
           })
@@ -1070,18 +1173,14 @@ export const spacesApi: Suite<State> = {
     },
     {
       id: 'space.read-authorized',
-      name: '[root] read space via GET with proper authorization',
+      name: '[root] read the Space Metadata object via GET with proper authorization',
       group: 'Space API',
       specRefs: ['https://wallet.storage/spec#read-space-operation'],
       run: async (ctx, state) => {
         const { serverUrl, withoutCreatedBy } = ctx
         const { alice } = state
-        const spaceUrl = new URL(
-          `/space/${alice.space1.id}`,
-          serverUrl
-        ).toString()
         const response = await alice.rootClient.request({
-          url: spaceUrl,
+          url: spaceMetaUrl(serverUrl, alice.space1.id),
           method: 'GET',
           action: 'GET'
         })
@@ -1092,14 +1191,14 @@ export const spacesApi: Suite<State> = {
           name: "Alice's Space #1 (Home)",
           type: ['Space'],
           controller: alice.did,
-          url: `/space/${alice.space1.id}`,
+          url: `/space/${alice.space1.id}/`,
           linkset: `/space/${alice.space1.id}/linkset`
         })
       }
     },
     {
       id: 'space.read-delegated',
-      name: '[delegated] authorized app should GET /space/:spaceId',
+      name: '[delegated] authorized app should GET /space/:spaceId/meta',
       group: 'Space API',
       specRefs: [
         'https://wallet.storage/spec#read-space-operation',
@@ -1109,19 +1208,18 @@ export const spacesApi: Suite<State> = {
         const { serverUrl, zcapClient, withoutCreatedBy } = ctx
         const { alice, aliceDelegatedApp } = state
         const aliceAppClient = zcapClient({ signer: aliceDelegatedApp.signer })
-        const spaceUrl = new URL(
-          `/space/${alice.space1.id}`,
-          serverUrl
-        ).toString()
 
+        // A capability delegated on the Space container covers its `meta`
+        // sub-resource too (spec "Reading This Document"; ARCHITECTURE.md's
+        // v0.5 subtree-attenuation note).
         const delegatedSpaceCapability = await alice.rootClient.delegate({
           allowedActions: ['GET'],
-          invocationTarget: spaceUrl,
+          invocationTarget: spaceUrl(serverUrl, alice.space1.id),
           controller: aliceDelegatedApp.did
         })
 
         const appResponse = await aliceAppClient.request({
-          url: spaceUrl,
+          url: spaceMetaUrl(serverUrl, alice.space1.id),
           capability: delegatedSpaceCapability,
           method: 'GET',
           action: 'GET'
@@ -1136,14 +1234,14 @@ export const spacesApi: Suite<State> = {
           name: "Alice's Space #1 (Home)",
           type: ['Space'],
           controller: alice.did,
-          url: `/space/${alice.space1.id}`,
+          url: `/space/${alice.space1.id}/`,
           linkset: `/space/${alice.space1.id}/linkset`
         })
       }
     },
     {
       id: 'space.cross-user-read-404',
-      name: '[root] Bob should not be able to GET Alice space',
+      name: "[root] Bob should not be able to GET Alice's Space Metadata object",
       group: 'Space API',
       specRefs: [
         'https://wallet.storage/spec#read-space-operation',
@@ -1152,13 +1250,13 @@ export const spacesApi: Suite<State> = {
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice, bob } = state
-        const spaceUrl = new URL(
-          `/space/${alice.space1.id}`,
-          serverUrl
-        ).toString()
         let expectedError: any
         try {
-          await bob.rootClient.request({ url: spaceUrl, action: 'GET' })
+          await bob.rootClient.request({
+            url: spaceMetaUrl(serverUrl, alice.space1.id),
+            method: 'GET',
+            action: 'GET'
+          })
         } catch (err) {
           expectedError = err
         }
@@ -1188,16 +1286,18 @@ export const spacesApi: Suite<State> = {
           rootClient: alice.rootClient
         })
 
-        const spaceUrl = new URL(`/space/${spaceId}`, serverUrl).toString()
         const deleteResponse = await alice.rootClient.request({
-          url: spaceUrl,
+          url: spaceUrl(serverUrl, spaceId),
           method: 'DELETE'
         })
         assert.equal(deleteResponse.status, 204)
 
         let checkResponse: any
         try {
-          await alice.rootClient.request({ url: spaceUrl, method: 'GET' })
+          await alice.rootClient.request({
+            url: spaceMetaUrl(serverUrl, spaceId),
+            method: 'GET'
+          })
         } catch (err: any) {
           checkResponse = err.response
         }
@@ -1216,7 +1316,6 @@ export const spacesApi: Suite<State> = {
         const { serverUrl, createSpace, generateId } = ctx
         const { alice, bob } = state
         const spaceId = generateId()
-        const spaceUrl = new URL(`/space/${spaceId}`, serverUrl).toString()
         await createSpace({
           spaceDescription: {
             id: spaceId,
@@ -1253,7 +1352,7 @@ export const spacesApi: Suite<State> = {
           // The original Space is untouched: its name and controller are as
           // first created, not the conflicting POST's proposed values.
           const checkResponse = await alice.rootClient.request({
-            url: spaceUrl,
+            url: spaceMetaUrl(serverUrl, spaceId),
             method: 'GET',
             action: 'GET'
           })
@@ -1262,7 +1361,10 @@ export const spacesApi: Suite<State> = {
           assert.equal(checkResponse.data.controller, alice.did)
         } finally {
           try {
-            await alice.rootClient.request({ url: spaceUrl, method: 'DELETE' })
+            await alice.rootClient.request({
+              url: spaceUrl(serverUrl, spaceId),
+              method: 'DELETE'
+            })
           } catch {
             /* best-effort cleanup */
           }
@@ -1273,7 +1375,7 @@ export const spacesApi: Suite<State> = {
       id: 'space.create-ignores-body-createdby',
       name: '[root] a body-supplied `createdBy` is ignored by the server',
       group: 'Space API',
-      specRefs: ['https://wallet.storage/spec#space-data-model'],
+      specRefs: ['https://wallet.storage/spec#space-metadata-data-model'],
       run: async (ctx, state) => {
         const { serverUrl, createSpace, generateId } = ctx
         const { alice } = state
@@ -1283,7 +1385,6 @@ export const spacesApi: Suite<State> = {
         const bogusCreatedBy =
           'did:key:z6MkpBMbMaRSv5nsgifRAwEKvHHoiKDMhiAHShTFNmkJXXXX'
         const spaceId = generateId()
-        const spaceUrl = new URL(`/space/${spaceId}`, serverUrl).toString()
         await createSpace({
           spaceDescription: {
             id: spaceId,
@@ -1295,7 +1396,7 @@ export const spacesApi: Suite<State> = {
         })
         try {
           const response = await alice.rootClient.request({
-            url: spaceUrl,
+            url: spaceMetaUrl(serverUrl, spaceId),
             method: 'GET',
             action: 'GET'
           })
@@ -1309,7 +1410,10 @@ export const spacesApi: Suite<State> = {
           )
         } finally {
           try {
-            await alice.rootClient.request({ url: spaceUrl, method: 'DELETE' })
+            await alice.rootClient.request({
+              url: spaceUrl(serverUrl, spaceId),
+              method: 'DELETE'
+            })
           } catch {
             /* best-effort cleanup */
           }
@@ -1333,11 +1437,11 @@ export const spacesApi: Suite<State> = {
         // in her -- the direct signer-mismatch shape (this is the CREATE
         // branch; the update branch is covered by space.update-controller-swap).
         const spaceId = generateId()
-        const spaceUrl = new URL(`/space/${spaceId}`, serverUrl).toString()
+        const metaUrl = spaceMetaUrl(serverUrl, spaceId)
         let expectedError: any
         try {
           await bob.rootClient.request({
-            url: spaceUrl,
+            url: metaUrl,
             method: 'PUT',
             action: 'PUT',
             json: {
@@ -1361,7 +1465,7 @@ export const spacesApi: Suite<State> = {
         let checkError: any
         try {
           await alice.rootClient.request({
-            url: spaceUrl,
+            url: metaUrl,
             method: 'GET',
             action: 'GET'
           })
@@ -1384,7 +1488,6 @@ export const spacesApi: Suite<State> = {
         const { serverUrl, createSpace, generateId } = ctx
         const { alice } = state
         const spaceId = generateId()
-        const spaceUrl = new URL(`/space/${spaceId}`, serverUrl).toString()
         const policyUrl = new URL(
           `/space/${spaceId}/policy`,
           serverUrl
@@ -1424,7 +1527,10 @@ export const spacesApi: Suite<State> = {
           )
         } finally {
           try {
-            await alice.rootClient.request({ url: spaceUrl, method: 'DELETE' })
+            await alice.rootClient.request({
+              url: spaceUrl(serverUrl, spaceId),
+              method: 'DELETE'
+            })
           } catch {
             /* best-effort cleanup */
           }
@@ -1433,19 +1539,18 @@ export const spacesApi: Suite<State> = {
     },
     {
       id: 'collections.list-for-space',
-      name: '[root] GET /space/:spaceId/collections/ lists collections for a space',
+      name: '[root] GET /space/:spaceId/ lists collections for a space',
       group: 'Collections API',
       specRefs: ['https://wallet.storage/spec#list-all-collections-operation'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice, collectionId } = state
-        const collectionsUrl = new URL(
-          `/space/${alice.space3.id}/collections/`,
-          serverUrl
-        ).toString()
 
+        // v0.5 moved listing (and creating) Collections onto the Space
+        // container URL itself; the retired `collections` sub-resource is
+        // covered separately (see `space.retired-collections-redirect`).
         const response = await alice.rootClient.request({
-          url: collectionsUrl,
+          url: spaceUrl(serverUrl, alice.space3.id),
           method: 'GET'
         })
 
@@ -1470,16 +1575,45 @@ export const spacesApi: Suite<State> = {
         assert.deepStrictEqual(
           { ...response.data, items: coreItems },
           {
-            url: `/space/${alice.space3.id}/collections/`,
+            url: `/space/${alice.space3.id}/`,
             totalItems: 1,
             items: [
               {
                 id: collectionId,
                 name: 'Test Collection',
-                url: `/space/${alice.space3.id}/${collectionId}`
+                url: `/space/${alice.space3.id}/${collectionId}/`
               }
             ]
           }
+        )
+      }
+    },
+    {
+      id: 'space.retired-collections-redirect',
+      name: '[root] GET /space/:spaceId/collections/ (retired in v0.5) MAY 308 to the Space URL',
+      group: 'Collections API',
+      optional: true,
+      specRefs: ['https://wallet.storage/spec#space-level-reserved-endpoints'],
+      run: async (ctx, state) => {
+        const { serverUrl } = ctx
+        const { alice } = state
+        const retiredUrl = new URL(
+          `/space/${alice.space3.id}/collections/`,
+          serverUrl
+        ).toString()
+        const response = await fetch(retiredUrl, {
+          method: 'GET',
+          redirect: 'manual'
+        })
+        if (response.status !== 308) {
+          ctx.skip(
+            'the retired `collections` endpoint is a MAY 308; this server ' +
+              `answered ${response.status} instead`
+          )
+        }
+        assert.equal(
+          response.headers.get('location'),
+          `/space/${alice.space3.id}/`
         )
       }
     }

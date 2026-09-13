@@ -5,7 +5,7 @@
  * WAS conformance tests -- the Collection `plaintext` member and its `indexes`
  * declaration (server-side plaintext indexing for the `equality` query
  * profile). `plaintext` is the counterpart of `encryption`: at most one of the
- * two is present on a Collection Description, by presence, so an empty
+ * two is present on a Collection Metadata object, by presence, so an empty
  * `plaintext` object still excludes `encryption`. Unlike the set-once
  * `encryption`, `plaintext` is updatable for the Collection's life; `{}` is
  * its empty state.
@@ -48,7 +48,7 @@ export const plaintextDeclarationApi: Suite<State> = {
   id: 'plaintext-declaration-api',
   name: 'Plaintext declaration API',
   optional: true,
-  specRefs: ['https://wallet.storage/spec#collection-data-model'],
+  specRefs: ['https://wallet.storage/spec#collection-metadata-data-model'],
 
   setup: async ctx => {
     const { serverUrl } = ctx
@@ -84,10 +84,10 @@ export const plaintextDeclarationApi: Suite<State> = {
         json
       })
     }
-    /** PUTs a Collection Description by id (create-by-id or update). */
+    /** PUTs a Collection Metadata object by id (create-by-id or update). */
     function putCollection(collectionId: string, json: object): Promise<any> {
       return alice.rootClient.request({
-        url: collectionUrl(collectionId),
+        url: `${collectionUrl(collectionId)}/meta`,
         method: 'PUT',
         action: 'PUT',
         json
@@ -95,7 +95,7 @@ export const plaintextDeclarationApi: Suite<State> = {
     }
     function readCollection(collectionId: string): Promise<any> {
       return alice.rootClient.request({
-        url: collectionUrl(collectionId),
+        url: `${collectionUrl(collectionId)}/meta`,
         method: 'GET'
       })
     }
@@ -114,7 +114,7 @@ export const plaintextDeclarationApi: Suite<State> = {
     const { alice } = state
     try {
       await alice.rootClient.request({
-        url: new URL(`/space/${alice.space1.id}`, ctx.serverUrl).toString(),
+        url: new URL(`/space/${alice.space1.id}/`, ctx.serverUrl).toString(),
         method: 'DELETE'
       })
     } catch {
@@ -126,7 +126,7 @@ export const plaintextDeclarationApi: Suite<State> = {
     {
       id: 'plaintext.persist-echo-post',
       name: '[root] persists and echoes plaintext.indexes on POST create and on GET',
-      specRefs: ['https://wallet.storage/spec#collection-data-model'],
+      specRefs: ['https://wallet.storage/spec#collection-metadata-data-model'],
       run: async (ctx, state) => {
         const { createCollection, readCollection } = state
         const plaintext = {
@@ -152,7 +152,7 @@ export const plaintextDeclarationApi: Suite<State> = {
     {
       id: 'plaintext.persist-echo-put',
       name: '[root] persists and echoes plaintext.indexes on PUT create-by-id',
-      specRefs: ['https://wallet.storage/spec#collection-data-model'],
+      specRefs: ['https://wallet.storage/spec#collection-metadata-data-model'],
       run: async (ctx, state) => {
         const { putCollection, readCollection } = state
         const response = await putCollection('posts-put', {
@@ -172,7 +172,7 @@ export const plaintextDeclarationApi: Suite<State> = {
       id: 'plaintext.both-on-create-400',
       name: '[root] plaintext and encryption both present on create is invalid-request-body (400), even an empty plaintext',
       specRefs: [
-        'https://wallet.storage/spec#collection-data-model',
+        'https://wallet.storage/spec#collection-metadata-data-model',
         'https://wallet.storage/spec#invalid-request-body'
       ],
       run: async (ctx, state) => {
@@ -216,19 +216,28 @@ export const plaintextDeclarationApi: Suite<State> = {
       id: 'plaintext.both-on-update-400',
       name: '[root] an update whose result carries both plaintext and encryption is invalid-request-body (400), in either direction',
       specRefs: [
-        'https://wallet.storage/spec#collection-data-model',
+        'https://wallet.storage/spec#collection-metadata-data-model',
         'https://wallet.storage/spec#invalid-request-body'
       ],
       run: async (ctx, state) => {
         const { createCollection, putCollection, readCollection } = state
-        // Adding `plaintext` (even empty) to an encrypted Collection.
+        // Adding `plaintext` (even empty) to an encrypted Collection. `PUT`
+        // is a full replacement, so `encryption` is re-sent unchanged (an
+        // idempotent no-op) alongside the newly added `plaintext` -- an
+        // update that omitted `encryption` instead would be an attempt to
+        // clear the set-once descriptor (`encryption-immutable`, 409), a
+        // different failure than the one under test here.
         await createCollection({
           id: 'enc-first',
           encryption: { scheme: 'edv' }
         })
         for (const plaintext of [{ indexes: ['parentId'] }, {}]) {
           const err = await rejection(
-            putCollection('enc-first', { id: 'enc-first', plaintext }),
+            putCollection('enc-first', {
+              id: 'enc-first',
+              encryption: { scheme: 'edv' },
+              plaintext
+            }),
             'expected adding plaintext to an encrypted Collection to be rejected'
           )
           assert.equal(err.response.status, 400)
@@ -310,7 +319,7 @@ export const plaintextDeclarationApi: Suite<State> = {
     {
       id: 'plaintext.updatable',
       name: '[root] plaintext is updatable on an existing Collection: added, changed, and emptied with {}; an absent member is left untouched',
-      specRefs: ['https://wallet.storage/spec#collection-data-model'],
+      specRefs: ['https://wallet.storage/spec#collection-metadata-data-model'],
       run: async (ctx, state) => {
         const { createCollection, putCollection, readCollection } = state
         // Born without `plaintext`.
@@ -352,7 +361,7 @@ export const plaintextDeclarationApi: Suite<State> = {
       id: 'plaintext.unique-conflict-409',
       name: '[root] a write claiming a held unique plaintext attribute value is id-conflict (409)',
       specRefs: [
-        'https://wallet.storage/spec#collection-data-model',
+        'https://wallet.storage/spec#collection-metadata-data-model',
         'https://wallet.storage/spec#id-conflict'
       ],
       run: async (ctx, state) => {
@@ -408,7 +417,7 @@ export const plaintextDeclarationApi: Suite<State> = {
       id: 'plaintext.unique-declare-conflict-409',
       name: '[root] promoting an attribute to unique over Resources that already collide is id-conflict (409)',
       specRefs: [
-        'https://wallet.storage/spec#collection-data-model',
+        'https://wallet.storage/spec#collection-metadata-data-model',
         'https://wallet.storage/spec#id-conflict'
       ],
       run: async (ctx, state) => {

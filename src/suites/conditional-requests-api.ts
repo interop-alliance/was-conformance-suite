@@ -14,9 +14,10 @@
  * `SHOULD emit ETag` guidance and are marked `optional: true`.
  *
  * Most tests work at the Resource level in a plain JSON Collection; the
- * "Descriptions" group covers the same preconditions on the Collection and
- * Space Descriptions (the guarded create two provisioning clients race on).
- * All drive raw `ZcapClient.request()` calls so the `If-Match` /
+ * "Collection Metadata object" and "Space Metadata object" groups cover the
+ * same preconditions on those Metadata objects (the guarded create two
+ * provisioning clients race on). All drive raw `ZcapClient.request()` calls
+ * so the `If-Match` /
  * `If-None-Match` precondition headers can be attached directly. Those preconditions describe the request
  * rather than the capability target, so they need not be covered by the
  * signature; the server reads them off the request headers after authorization.
@@ -173,7 +174,7 @@ export const conditionalRequestsApi: Suite<State> = {
     const { alice } = state
     try {
       await alice.rootClient.request({
-        url: new URL(`/space/${alice.space1.id}`, ctx.serverUrl).toString(),
+        url: new URL(`/space/${alice.space1.id}/`, ctx.serverUrl).toString(),
         method: 'DELETE'
       })
     } catch {
@@ -674,7 +675,7 @@ export const conditionalRequestsApi: Suite<State> = {
       optional: true,
       specRefs: [
         'https://wallet.storage/spec#caching',
-        'https://wallet.storage/spec#error-responses'
+        'https://wallet.storage/spec#not-found'
       ],
       run: async (ctx, state) => {
         const { alice, bob, collectionUrl } = state
@@ -708,7 +709,7 @@ export const conditionalRequestsApi: Suite<State> = {
       name:
         '[root] a Collection PUT with `If-None-Match: *` creates an absent ' +
         'Collection and 412s on a present one',
-      group: 'Descriptions',
+      group: 'Collection Metadata object',
       specRefs: [
         'https://wallet.storage/spec#conditional-requests',
         'https://wallet.storage/spec#update-or-create-by-id-collection-operation',
@@ -719,14 +720,14 @@ export const conditionalRequestsApi: Suite<State> = {
         if (!conditionalWritesSupported) {
           ctx.skip('backend does not advertise conditional-writes')
         }
-        const collectionUrl = new URL(
-          `/space/${alice.space1.id}/guarded-collection`,
+        const metaUrl = new URL(
+          `/space/${alice.space1.id}/guarded-collection/meta`,
           ctx.serverUrl
         ).toString()
 
         // The guarded create proceeds on an absent Collection.
         const created = await alice.rootClient.request({
-          url: collectionUrl,
+          url: metaUrl,
           method: 'PUT',
           action: 'PUT',
           json: { id: 'guarded-collection', name: 'Winner' },
@@ -740,11 +741,11 @@ export const conditionalRequestsApi: Suite<State> = {
         )
 
         // The loser of a create race: the same guarded PUT MUST NOT replace
-        // the winner's description, and MUST 412.
+        // the winner's Metadata object, and MUST 412.
         let expectedError: any
         try {
           await alice.rootClient.request({
-            url: collectionUrl,
+            url: metaUrl,
             method: 'PUT',
             action: 'PUT',
             json: { id: 'guarded-collection', name: 'Loser' },
@@ -756,14 +757,14 @@ export const conditionalRequestsApi: Suite<State> = {
         assertPreconditionFailed(expectedError)
 
         const unchanged = await alice.rootClient.request({
-          url: collectionUrl,
+          url: metaUrl,
           method: 'GET'
         })
         assert.equal(unchanged.data.name, 'Winner')
 
         // An unconditional PUT still replaces.
         const replaced = await alice.rootClient.request({
-          url: collectionUrl,
+          url: metaUrl,
           method: 'PUT',
           action: 'PUT',
           json: { id: 'guarded-collection', name: 'Replaced' }
@@ -775,11 +776,116 @@ export const conditionalRequestsApi: Suite<State> = {
       }
     },
     {
+      id: 'conditional.collection-if-none-match-refuses-post-created',
+      name:
+        '[root] a Collection Metadata PUT with `If-None-Match: *` 412s on a ' +
+        'Collection that was only ever POST-created, with no prior ' +
+        'annotation write',
+      group: 'Collection Metadata object',
+      specRefs: [
+        'https://wallet.storage/spec#conditional-requests',
+        'https://wallet.storage/spec#collection-metadata-versioning',
+        'https://wallet.storage/spec#precondition-failed'
+      ],
+      run: async (ctx, state) => {
+        const { alice, conditionalWritesSupported } = state
+        if (!conditionalWritesSupported) {
+          ctx.skip('backend does not advertise conditional-writes')
+        }
+        const collectionId = ctx.generateId()
+
+        // The Collection's Metadata object comes into being with the
+        // Collection itself, via the ordinary POST create -- never via a
+        // guarded PUT and never annotated.
+        await alice.rootClient.request({
+          url: new URL(`/space/${alice.space1.id}/`, ctx.serverUrl).toString(),
+          method: 'POST',
+          action: 'POST',
+          json: { id: collectionId, name: 'Never Guarded' }
+        })
+        const metaUrl = new URL(
+          `/space/${alice.space1.id}/${collectionId}/meta`,
+          ctx.serverUrl
+        ).toString()
+
+        // The object already exists, so the create-only precondition MUST
+        // 412 even though the client never wrote to `meta` directly.
+        let expectedError: any
+        try {
+          await alice.rootClient.request({
+            url: metaUrl,
+            method: 'PUT',
+            action: 'PUT',
+            json: { id: collectionId, name: 'Overwrite' },
+            headers: { 'if-none-match': '*' }
+          })
+        } catch (err) {
+          expectedError = err
+        }
+        assertPreconditionFailed(expectedError)
+
+        const unchanged = await alice.rootClient.request({
+          url: metaUrl,
+          method: 'GET'
+        })
+        assert.equal(unchanged.data.name, 'Never Guarded')
+      }
+    },
+    {
+      id: 'conditional.collection-meta-get-if-none-match-304',
+      name:
+        '[root] Read Collection Metadata carries a quoted ETag and a ' +
+        'matching `If-None-Match` is answered 304',
+      group: 'Collection Metadata object',
+      optional: true,
+      specRefs: [
+        'https://wallet.storage/spec#caching',
+        'https://wallet.storage/spec#read-collection-metadata-operation'
+      ],
+      run: async (ctx, state) => {
+        const { alice } = state
+        const collectionId = ctx.generateId()
+        await alice.rootClient.request({
+          url: new URL(`/space/${alice.space1.id}/`, ctx.serverUrl).toString(),
+          method: 'POST',
+          action: 'POST',
+          json: { id: collectionId, name: 'Meta 304' }
+        })
+        const metaUrl = new URL(
+          `/space/${alice.space1.id}/${collectionId}/meta`,
+          ctx.serverUrl
+        ).toString()
+
+        const read = await readResource({
+          url: metaUrl,
+          method: 'GET',
+          invocationSigner: alice.rootClient.invocationSigner
+        })
+        assert.equal(read.status, 200)
+        const etag = read.headers.get('etag')
+        assert.match(
+          etag ?? '',
+          /^"[^"]+"$/,
+          'expected a quoted ETag validator'
+        )
+
+        const unchanged = await readResource({
+          url: metaUrl,
+          method: 'GET',
+          invocationSigner: alice.rootClient.invocationSigner,
+          ifNoneMatch: etag!
+        })
+        assert.equal(unchanged.status, 304)
+        assert.equal(unchanged.headers.get('etag'), etag)
+        assert.equal(await unchanged.text(), '')
+      }
+    },
+    {
       id: 'conditional.space-get-carries-etag',
       name:
         '[root] Read Space carries a quoted ETag and a matching ' +
         '`If-None-Match` is answered 304',
-      group: 'Descriptions',
+      group: 'Space Metadata object',
       optional: true,
       specRefs: [
         'https://wallet.storage/spec#caching',
@@ -787,12 +893,12 @@ export const conditionalRequestsApi: Suite<State> = {
       ],
       run: async (ctx, state) => {
         const { alice } = state
-        const spaceUrl = new URL(
-          `/space/${alice.space1.id}`,
+        const metaUrl = new URL(
+          `/space/${alice.space1.id}/meta`,
           ctx.serverUrl
         ).toString()
         const read = await readResource({
-          url: spaceUrl,
+          url: metaUrl,
           method: 'GET',
           invocationSigner: alice.rootClient.invocationSigner
         })
@@ -807,7 +913,7 @@ export const conditionalRequestsApi: Suite<State> = {
         assert.equal(body.id, alice.space1.id)
 
         const unchanged = await readResource({
-          url: spaceUrl,
+          url: metaUrl,
           method: 'GET',
           invocationSigner: alice.rootClient.invocationSigner,
           ifNoneMatch: etag!
@@ -822,7 +928,7 @@ export const conditionalRequestsApi: Suite<State> = {
       name:
         '[root] a Space PUT with `If-None-Match: *` creates an absent Space ' +
         'and 412s on a present one',
-      group: 'Descriptions',
+      group: 'Space Metadata object',
       specRefs: [
         'https://wallet.storage/spec#conditional-requests',
         'https://wallet.storage/spec#update-or-create-by-id-space-operation',
@@ -834,10 +940,11 @@ export const conditionalRequestsApi: Suite<State> = {
           ctx.skip('backend does not advertise conditional-writes')
         }
         const spaceId = ctx.generateId()
-        const spaceUrl = new URL(`/space/${spaceId}`, ctx.serverUrl).toString()
+        const spaceUrl = new URL(`/space/${spaceId}/`, ctx.serverUrl).toString()
+        const metaUrl = `${spaceUrl}meta`
         try {
           const created = await alice.rootClient.request({
-            url: spaceUrl,
+            url: metaUrl,
             method: 'PUT',
             action: 'PUT',
             json: { id: spaceId, name: 'Winner', controller: alice.did },
@@ -851,11 +958,11 @@ export const conditionalRequestsApi: Suite<State> = {
           )
 
           // The loser of a provisioning race MUST NOT replace the winner's
-          // description, and MUST 412.
+          // Metadata object, and MUST 412.
           let expectedError: any
           try {
             await alice.rootClient.request({
-              url: spaceUrl,
+              url: metaUrl,
               method: 'PUT',
               action: 'PUT',
               json: { id: spaceId, name: 'Loser', controller: alice.did },
@@ -867,7 +974,7 @@ export const conditionalRequestsApi: Suite<State> = {
           assertPreconditionFailed(expectedError)
 
           const unchanged = await alice.rootClient.request({
-            url: spaceUrl,
+            url: metaUrl,
             method: 'GET'
           })
           assert.equal(unchanged.data.name, 'Winner')
@@ -889,7 +996,7 @@ export const conditionalRequestsApi: Suite<State> = {
       name:
         '[root] a stale `If-Match` on Update Space 412s; the current one ' +
         'succeeds and an unconditional PUT still replaces',
-      group: 'Descriptions',
+      group: 'Space Metadata object',
       specRefs: [
         'https://wallet.storage/spec#conditional-requests',
         'https://wallet.storage/spec#update-or-create-by-id-space-operation',
@@ -901,7 +1008,8 @@ export const conditionalRequestsApi: Suite<State> = {
           ctx.skip('backend does not advertise conditional-writes')
         }
         const spaceId = ctx.generateId()
-        const spaceUrl = new URL(`/space/${spaceId}`, ctx.serverUrl).toString()
+        const spaceUrl = new URL(`/space/${spaceId}/`, ctx.serverUrl).toString()
+        const metaUrl = `${spaceUrl}meta`
         const description = (name: string) => ({
           id: spaceId,
           name,
@@ -909,7 +1017,7 @@ export const conditionalRequestsApi: Suite<State> = {
         })
         try {
           const created = await alice.rootClient.request({
-            url: spaceUrl,
+            url: metaUrl,
             method: 'PUT',
             action: 'PUT',
             json: description('One')
@@ -921,7 +1029,7 @@ export const conditionalRequestsApi: Suite<State> = {
           let expectedError: any
           try {
             await alice.rootClient.request({
-              url: spaceUrl,
+              url: metaUrl,
               method: 'PUT',
               action: 'PUT',
               json: description('Stale'),
@@ -932,7 +1040,7 @@ export const conditionalRequestsApi: Suite<State> = {
           }
           assertPreconditionFailed(expectedError)
           const unchanged = await alice.rootClient.request({
-            url: spaceUrl,
+            url: metaUrl,
             method: 'GET'
           })
           assert.equal(unchanged.data.name, 'One')
@@ -940,7 +1048,7 @@ export const conditionalRequestsApi: Suite<State> = {
           // The matching precondition is satisfied: the write proceeds and
           // the response carries the new validator.
           const swapped = await alice.rootClient.request({
-            url: spaceUrl,
+            url: metaUrl,
             method: 'PUT',
             action: 'PUT',
             json: description('Two'),
@@ -952,14 +1060,14 @@ export const conditionalRequestsApi: Suite<State> = {
           )
           assert.notEqual(swapped.headers.get('etag'), currentEtag)
           const after = await alice.rootClient.request({
-            url: spaceUrl,
+            url: metaUrl,
             method: 'GET'
           })
           assert.equal(after.data.name, 'Two')
 
           // An unconditional PUT still replaces (last writer wins).
           const replaced = await alice.rootClient.request({
-            url: spaceUrl,
+            url: metaUrl,
             method: 'PUT',
             action: 'PUT',
             json: description('Three')

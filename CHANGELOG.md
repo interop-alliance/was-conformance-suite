@@ -1,5 +1,68 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.16.0 - TBD
+
+### Changed
+
+- Targets the WAS v0.5 route table; a v0.4 server no longer passes. Space and
+  Collection Metadata objects are read and written at `/space/:s/meta` and
+  `/space/:s/:c/meta`, `PUT` there creates the container, containers are
+  addressed with a trailing slash, and `GET /space/:s/` lists Collections. The
+  Space root capability id is minted from the trailing-slash Space URL.
+- `@interop/was-client` peer and dev dependency raised to 0.61.0 (the v0.5
+  client).
+- `collection.meta-etag-independent-of-description` is replaced by
+  `collection.meta-configuration-and-annotation-share-etag`: a configuration
+  write and a `custom` write advance the same `ETag`.
+- `collection.meta-put-missing-collection-404` is replaced by
+  `collection.meta-put-creates-missing-collection` (201).
+- `collection.meta-reserved-resource-id-409` is replaced by
+  `collection.meta-delete-405-not-reserved-id`: `DELETE` at the Collection
+  `meta` URL is 405 with `Allow`.
+- `collection.read-description` is renamed `collection.read-metadata`.
+- `write-validation.collection-reserved-id-put` now creates at
+  `PUT /space/:s/export/meta`.
+- `encryption.clear-descriptor-immutable` now requires 409
+  `encryption-immutable`, since a Metadata `PUT` omitting `encryption` clears
+  it.
+- Test titles say "Space Metadata object" / "Collection Metadata object" instead
+  of "description", and `specRefs` point at the v0.5 anchors.
+
+### Added
+
+- `reserved-methods-api`: a method a server does not implement at a reserved
+  endpoint is 405 with an `Allow` header omitting it, an `about:blank` problem
+  and the title `Method Not Allowed`, at all three levels. Endpoints of an
+  OPTIONAL feature group also accept 501. Also asserts the same answer for an
+  absent Space id; `HEAD` following `GET` and `OPTIONS` reaching CORS preflight
+  are optional.
+- `PUT` at a Space or Collection container URL is 405 (required).
+- The slash-less form of a Space or Collection URL 308-redirects to the
+  canonical form, and the canonical form does not redirect (optional).
+- `/space/:s/collections/` may 308 to the Space URL (optional, skips otherwise).
+- `meta` is a reserved Collection id: `POST /space/:s/` with `id: "meta"` is 409
+  `reserved-id`.
+- Container `url` members and the Create Collection `Location` carry the
+  trailing slash.
+- A Collection Metadata update omitting `backend` keeps the stored selection
+  (optional; skips when no backend can be registered).
+- `If-None-Match: *` on a Collection Metadata `PUT` refuses a Collection that
+  was created by `POST`, and `GET /space/:s/:c/meta` answers 304 to a covering
+  `If-None-Match` (optional).
+
+### Removed
+
+- `write-validation.resource-reserved-id-put` and
+  `ordering.resource-post-conflict-404`. The spec no longer lists `reserved-id`
+  or an existing-id `id-conflict` for Resource creation: Create Resource
+  generates the id, and a reserved segment in the Resource position is a
+  reserved endpoint.
+
+### Fixed
+
+- Suite teardowns deleted the slash-less Space URL, which a v0.5 server
+  redirects, so test Spaces were left behind.
+
 ## 0.15.0 - 2026-09-10
 
 ### Changed

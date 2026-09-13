@@ -182,7 +182,7 @@ export const invocationTargetApi: Suite<State> = {
     for (const space of [alice.space1, alice.space2]) {
       try {
         await alice.rootClient.request({
-          url: new URL(`/space/${space.id}`, ctx.serverUrl).toString(),
+          url: new URL(`/space/${space.id}/`, ctx.serverUrl).toString(),
           method: 'DELETE'
         })
       } catch {

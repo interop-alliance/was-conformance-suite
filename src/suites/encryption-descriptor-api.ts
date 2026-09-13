@@ -86,7 +86,7 @@ export const encryptionDescriptorApi: Suite<State> = {
     const { alice } = state
     try {
       await alice.rootClient.request({
-        url: new URL(`/space/${alice.space1.id}`, ctx.serverUrl).toString(),
+        url: new URL(`/space/${alice.space1.id}/`, ctx.serverUrl).toString(),
         method: 'DELETE'
       })
     } catch {
@@ -98,10 +98,7 @@ export const encryptionDescriptorApi: Suite<State> = {
     {
       id: 'encryption.persist-echo-descriptor',
       name: '[root] persists and echoes the descriptor on create',
-      specRefs: [
-        'https://wallet.storage/spec#collection-data-model',
-        'https://wallet.storage/spec#collection-data-model'
-      ],
+      specRefs: ['https://wallet.storage/spec#collection-metadata-data-model'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice, createCollection } = state
@@ -114,7 +111,10 @@ export const encryptionDescriptorApi: Suite<State> = {
         assert.deepStrictEqual(response.data.encryption, { scheme: 'edv' })
 
         const read = await alice.rootClient.request({
-          url: new URL(`/space/${alice.space1.id}/vault`, serverUrl).toString(),
+          url: new URL(
+            `/space/${alice.space1.id}/vault/meta`,
+            serverUrl
+          ).toString(),
           method: 'GET'
         })
         assert.deepStrictEqual(read.data.encryption, { scheme: 'edv' })
@@ -122,13 +122,14 @@ export const encryptionDescriptorApi: Suite<State> = {
     },
     {
       id: 'encryption.delegated-discovers-descriptor',
-      name: 'a delegated consumer discovers the descriptor by reading the Description',
-      specRefs: ['https://wallet.storage/spec#collection-data-model'],
+      name: 'a delegated consumer discovers the descriptor by reading the Metadata object',
+      specRefs: ['https://wallet.storage/spec#collection-metadata-data-model'],
       run: async (ctx, state) => {
         const { alice, bob } = state
         // Alice grants Bob read on the vault; Bob -- who did not create it --
-        // rebuilds a handle and reads the Description, seeing the descriptor (this is how
-        // a consuming app learns to decrypt with its own keys).
+        // rebuilds a handle and reads the Metadata object, seeing the
+        // descriptor (this is how a consuming app learns to decrypt with its
+        // own keys).
         const zcap = await alice.was
           .space(alice.space1.id)
           .collection('vault')
@@ -136,8 +137,8 @@ export const encryptionDescriptorApi: Suite<State> = {
 
         const handle = bob.was.fromCapability(zcap)
         assert.ok(handle instanceof Collection)
-        const description = (await handle.describe()) as any
-        assert.deepStrictEqual(description.encryption, { scheme: 'edv' })
+        const metadata = (await handle.describe()) as any
+        assert.deepStrictEqual(metadata.encryption, { scheme: 'edv' })
       }
     },
     {
@@ -200,7 +201,7 @@ export const encryptionDescriptorApi: Suite<State> = {
       name: '[root] rejects changing the scheme of an existing descriptor and preserves it',
       specRefs: [
         'https://wallet.storage/spec#encryption-immutable',
-        'https://wallet.storage/spec#collection-data-model'
+        'https://wallet.storage/spec#collection-metadata-data-model'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -215,7 +216,7 @@ export const encryptionDescriptorApi: Suite<State> = {
         try {
           await alice.rootClient.request({
             url: new URL(
-              `/space/${alice.space1.id}/vault`,
+              `/space/${alice.space1.id}/vault/meta`,
               serverUrl
             ).toString(),
             method: 'PUT',
@@ -240,7 +241,10 @@ export const encryptionDescriptorApi: Suite<State> = {
 
         // The stored descriptor must be unchanged.
         const read = await alice.rootClient.request({
-          url: new URL(`/space/${alice.space1.id}/vault`, serverUrl).toString(),
+          url: new URL(
+            `/space/${alice.space1.id}/vault/meta`,
+            serverUrl
+          ).toString(),
           method: 'GET'
         })
         assert.deepStrictEqual(read.data.encryption, { scheme: 'edv' })
@@ -251,22 +255,22 @@ export const encryptionDescriptorApi: Suite<State> = {
       name: '[root] an update cannot clear an existing descriptor',
       specRefs: [
         'https://wallet.storage/spec#encryption-immutable',
-        'https://wallet.storage/spec#collection-data-model'
+        'https://wallet.storage/spec#collection-metadata-data-model'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice } = state
-        // Clearing is forbidden on the same set-once terms as changing. An
-        // update sent without `encryption` is either rejected with
-        // `encryption-immutable` (409, a server that reads the omission as a
-        // clear attempt) or accepted with the stored descriptor preserved (a
-        // server whose updates leave omitted fields untouched). What MUST NOT
-        // happen is the descriptor silently disappearing.
+        // Clearing is forbidden on the same set-once terms as changing. `PUT`
+        // is a full replacement, so a body sent without `encryption` would
+        // otherwise clear it -- the server MUST refuse that as an attempt to
+        // clear the descriptor (`encryption-immutable`, 409); unlike `backend`
+        // or `plaintext`, `encryption` has no "omitted means untouched"
+        // carve-out.
         let expectedError: any
         try {
           await alice.rootClient.request({
             url: new URL(
-              `/space/${alice.space1.id}/vault`,
+              `/space/${alice.space1.id}/vault/meta`,
               serverUrl
             ).toString(),
             method: 'PUT',
@@ -276,17 +280,22 @@ export const encryptionDescriptorApi: Suite<State> = {
         } catch (err) {
           expectedError = err
         }
-        if (expectedError) {
-          assert.equal(expectedError.response.status, 409)
-          assert.equal(
-            expectedError.data.type,
-            'https://wallet.storage/spec#encryption-immutable'
-          )
-        }
+        assert.ok(
+          expectedError,
+          'expected the descriptor-clearing update to be rejected'
+        )
+        assert.equal(expectedError.response.status, 409)
+        assert.equal(
+          expectedError.data.type,
+          'https://wallet.storage/spec#encryption-immutable'
+        )
 
-        // Either way, the stored descriptor must survive.
+        // The stored descriptor must survive.
         const read = await alice.rootClient.request({
-          url: new URL(`/space/${alice.space1.id}/vault`, serverUrl).toString(),
+          url: new URL(
+            `/space/${alice.space1.id}/vault/meta`,
+            serverUrl
+          ).toString(),
           method: 'GET'
         })
         assert.deepStrictEqual(read.data.encryption, { scheme: 'edv' })
@@ -492,7 +501,7 @@ export const encryptionDescriptorApi: Suite<State> = {
       id: 'encryption.version-persist-echo',
       name: '[root] persists and echoes a descriptor with an integer version',
       specRefs: [
-        'https://wallet.storage/spec#collection-data-model',
+        'https://wallet.storage/spec#collection-metadata-data-model',
         'https://wallet.storage/spec#encryption-scheme-registry'
       ],
       run: async (ctx, state) => {
@@ -509,7 +518,7 @@ export const encryptionDescriptorApi: Suite<State> = {
 
         const read = await alice.rootClient.request({
           url: new URL(
-            `/space/${alice.space1.id}/versioned-vault`,
+            `/space/${alice.space1.id}/versioned-vault/meta`,
             serverUrl
           ).toString(),
           method: 'GET'
@@ -546,7 +555,7 @@ export const encryptionDescriptorApi: Suite<State> = {
     {
       id: 'encryption.version-explicit-1-noop',
       name: '[root] accepts an explicit version 1 on a descriptor that had omitted it',
-      specRefs: ['https://wallet.storage/spec#collection-data-model'],
+      specRefs: ['https://wallet.storage/spec#collection-metadata-data-model'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice, createCollection } = state
@@ -561,7 +570,7 @@ export const encryptionDescriptorApi: Suite<State> = {
         assert.equal(created.status, 201)
         const response = await alice.rootClient.request({
           url: new URL(
-            `/space/${alice.space1.id}/versionless`,
+            `/space/${alice.space1.id}/versionless/meta`,
             serverUrl
           ).toString(),
           method: 'PUT',
@@ -574,7 +583,7 @@ export const encryptionDescriptorApi: Suite<State> = {
         )
         const read = await alice.rootClient.request({
           url: new URL(
-            `/space/${alice.space1.id}/versionless`,
+            `/space/${alice.space1.id}/versionless/meta`,
             serverUrl
           ).toString(),
           method: 'GET'
@@ -592,7 +601,7 @@ export const encryptionDescriptorApi: Suite<State> = {
       name: '[root] an update cannot remove the version once set',
       specRefs: [
         'https://wallet.storage/spec#encryption-immutable',
-        'https://wallet.storage/spec#collection-data-model'
+        'https://wallet.storage/spec#collection-metadata-data-model'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -607,7 +616,7 @@ export const encryptionDescriptorApi: Suite<State> = {
         try {
           await alice.rootClient.request({
             url: new URL(
-              `/space/${alice.space1.id}/versioned-vault`,
+              `/space/${alice.space1.id}/versioned-vault/meta`,
               serverUrl
             ).toString(),
             method: 'PUT',
@@ -628,7 +637,7 @@ export const encryptionDescriptorApi: Suite<State> = {
         // Either way, the standing version must survive semantically.
         const read = await alice.rootClient.request({
           url: new URL(
-            `/space/${alice.space1.id}/versioned-vault`,
+            `/space/${alice.space1.id}/versioned-vault/meta`,
             serverUrl
           ).toString(),
           method: 'GET'
@@ -645,7 +654,7 @@ export const encryptionDescriptorApi: Suite<State> = {
       id: 'encryption.version-raise-not-immutable',
       name: '[root] raising the version is not an immutability conflict',
       specRefs: [
-        'https://wallet.storage/spec#collection-data-model',
+        'https://wallet.storage/spec#collection-metadata-data-model',
         'https://wallet.storage/spec#encryption-scheme-registry'
       ],
       run: async (ctx, state) => {
@@ -662,7 +671,7 @@ export const encryptionDescriptorApi: Suite<State> = {
         try {
           response = await alice.rootClient.request({
             url: new URL(
-              `/space/${alice.space1.id}/versioned-vault`,
+              `/space/${alice.space1.id}/versioned-vault/meta`,
               serverUrl
             ).toString(),
             method: 'PUT',
@@ -684,7 +693,7 @@ export const encryptionDescriptorApi: Suite<State> = {
           // The rejected raise must leave the stored descriptor unchanged.
           const read = await alice.rootClient.request({
             url: new URL(
-              `/space/${alice.space1.id}/versioned-vault`,
+              `/space/${alice.space1.id}/versioned-vault/meta`,
               serverUrl
             ).toString(),
             method: 'GET'
@@ -735,7 +744,7 @@ export const encryptionDescriptorApi: Suite<State> = {
           assert.equal(response.status, 201)
           const read = await alice.rootClient.request({
             url: new URL(
-              `/space/${alice.space1.id}/future-version`,
+              `/space/${alice.space1.id}/future-version/meta`,
               serverUrl
             ).toString(),
             method: 'GET'
@@ -749,7 +758,7 @@ export const encryptionDescriptorApi: Suite<State> = {
       name: '[root] persists and echoes the blinding-key hmac member verbatim',
       specRefs: [
         'https://wallet.storage/spec#blinding-key-member',
-        'https://wallet.storage/spec#collection-data-model'
+        'https://wallet.storage/spec#collection-metadata-data-model'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -761,7 +770,7 @@ export const encryptionDescriptorApi: Suite<State> = {
         assert.equal(response.status, 201)
         const read = await alice.rootClient.request({
           url: new URL(
-            `/space/${alice.space1.id}/hmac-vault`,
+            `/space/${alice.space1.id}/hmac-vault/meta`,
             serverUrl
           ).toString(),
           method: 'GET'
@@ -837,7 +846,7 @@ export const encryptionDescriptorApi: Suite<State> = {
         try {
           await alice.rootClient.request({
             url: new URL(
-              `/space/${alice.space1.id}/hmac-id-locked`,
+              `/space/${alice.space1.id}/hmac-id-locked/meta`,
               serverUrl
             ).toString(),
             method: 'PUT',
@@ -855,7 +864,7 @@ export const encryptionDescriptorApi: Suite<State> = {
         )
         const read = await alice.rootClient.request({
           url: new URL(
-            `/space/${alice.space1.id}/hmac-id-locked`,
+            `/space/${alice.space1.id}/hmac-id-locked/meta`,
             serverUrl
           ).toString(),
           method: 'GET'
@@ -882,7 +891,7 @@ export const encryptionDescriptorApi: Suite<State> = {
         try {
           await alice.rootClient.request({
             url: new URL(
-              `/space/${alice.space1.id}/hmac-remove-locked`,
+              `/space/${alice.space1.id}/hmac-remove-locked/meta`,
               serverUrl
             ).toString(),
             method: 'PUT',
@@ -900,7 +909,7 @@ export const encryptionDescriptorApi: Suite<State> = {
         )
         const read = await alice.rootClient.request({
           url: new URL(
-            `/space/${alice.space1.id}/hmac-remove-locked`,
+            `/space/${alice.space1.id}/hmac-remove-locked/meta`,
             serverUrl
           ).toString(),
           method: 'GET'
@@ -932,7 +941,7 @@ export const encryptionDescriptorApi: Suite<State> = {
         ]
         const response = await alice.rootClient.request({
           url: new URL(
-            `/space/${alice.space1.id}/hmac-rewrap`,
+            `/space/${alice.space1.id}/hmac-rewrap/meta`,
             serverUrl
           ).toString(),
           method: 'PUT',
@@ -945,7 +954,7 @@ export const encryptionDescriptorApi: Suite<State> = {
         )
         const read = await alice.rootClient.request({
           url: new URL(
-            `/space/${alice.space1.id}/hmac-rewrap`,
+            `/space/${alice.space1.id}/hmac-rewrap/meta`,
             serverUrl
           ).toString(),
           method: 'GET'
@@ -973,7 +982,7 @@ export const encryptionDescriptorApi: Suite<State> = {
         assert.equal(created.status, 201)
         const response = await alice.rootClient.request({
           url: new URL(
-            `/space/${alice.space1.id}/hmac-late`,
+            `/space/${alice.space1.id}/hmac-late/meta`,
             serverUrl
           ).toString(),
           method: 'PUT',
@@ -986,7 +995,7 @@ export const encryptionDescriptorApi: Suite<State> = {
         )
         const read = await alice.rootClient.request({
           url: new URL(
-            `/space/${alice.space1.id}/hmac-late`,
+            `/space/${alice.space1.id}/hmac-late/meta`,
             serverUrl
           ).toString(),
           method: 'GET'
