@@ -1,5 +1,20 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.17.0 - TBD
+
+### Added
+
+- `container-rule-api`: the four container operations that target attenuation
+  cannot tell apart. `PUT /space/:s/meta` on an existing Space and
+  `DELETE /space/:s/:c/` take a direct root invocation only; a delegated
+  capability is refused 404 whatever its `allowedAction`. `DELETE /space/:s/`
+  also accepts a grant targeting exactly the trailing-slash Space URL with
+  `allowedAction` exactly `['DELETE']`, and refuses a two-verb grant.
+  `PUT /space/:s/:c/meta` also accepts a grant targeting exactly the
+  trailing-slash Space URL, and refuses one targeting the Collection URL.
+  `POST /space/:s/` stays delegable. Each refusal re-reads the target to show
+  nothing changed behind the 404.
+
 ## 0.16.0 - 2026-09-12
 
 ### Changed

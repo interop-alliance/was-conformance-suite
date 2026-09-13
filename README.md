@@ -134,6 +134,7 @@ The available suite ids (for `--suite`) are:
 | `client-spaces`             | WasClient -- Spaces & Collections                       |
 | `collection-api`            | Collections API                                         |
 | `conditional-requests-api`  | Conditional requests & caching                          |
+| `container-rule-api`        | The container rule                                      |
 | `delegation-cryptosuites`   | Delegation-proof cryptosuites                           |
 | `denial-reasons-api`        | Typed denial reasons (capability-expired / -revoked)    |
 | `digest-api`                | Request body integrity (Digest) negatives               |

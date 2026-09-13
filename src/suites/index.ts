@@ -14,6 +14,7 @@ import { clientResources } from './client-resources.js'
 import { clientSpaces } from './client-spaces.js'
 import { collectionApi } from './collection-api.js'
 import { conditionalRequestsApi } from './conditional-requests-api.js'
+import { containerRuleApi } from './container-rule-api.js'
 import { delegationCryptosuitesApi } from './delegation-cryptosuites-api.js'
 import { denialReasonsApi } from './denial-reasons-api.js'
 import { digestApi } from './digest-api.js'
@@ -44,6 +45,7 @@ export const suites: Array<Suite<any>> = [
   clientSpaces,
   collectionApi,
   conditionalRequestsApi,
+  containerRuleApi,
   delegationCryptosuitesApi,
   denialReasonsApi,
   digestApi,
@@ -71,6 +73,7 @@ export {
   clientSpaces,
   collectionApi,
   conditionalRequestsApi,
+  containerRuleApi,
   delegationCryptosuitesApi,
   denialReasonsApi,
   digestApi,
