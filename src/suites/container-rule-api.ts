@@ -14,9 +14,11 @@
  * - Delete Space (`DELETE /space/{s}/`) also accepts a delegated capability
  *   whose invoked grant targets exactly that Space's canonical
  *   trailing-slash URL with `allowedAction` exactly `['DELETE']`.
- * - Update (or Create by Id) Collection (`PUT /space/{s}/{c}/meta`) also
- *   accepts a delegated capability whose invoked grant targets exactly the
- *   Space's canonical trailing-slash URL.
+ * - Update (or Create by Id) Collection (`PUT /space/{s}/{c}/meta`) accepts
+ *   a delegated capability whose invoked grant targets exactly the Space's
+ *   canonical trailing-slash URL, or the Collection URL itself: a
+ *   Collection-scoped grant declares the Collection's own indexes and
+ *   `encryption`, and Delete Collection stays controller-only.
  *
  * `PUT /space/{s}/meta` on an existing Space and
  * `DELETE /space/{s}/{c}/` take no delegated capability at all. Creating a
@@ -566,8 +568,8 @@ export const containerRuleApi: Suite<State> = {
       }
     },
     {
-      id: 'container-rule.collection-meta-put-delegated-collection-target-refused',
-      name: '[delegated] PUT /space/:s/:c/meta under a grant on the Collection URL is refused (404)',
+      id: 'container-rule.collection-meta-put-delegated-collection-target',
+      name: '[delegated] PUT /space/:s/:c/meta is authorized by a grant on the Collection URL',
       specRefs: [CONTAINER_RULE],
       run: async (ctx, state) => {
         const spaceId = await provisionSpace({
@@ -587,9 +589,10 @@ export const containerRuleApi: Suite<State> = {
           ctx.serverUrl
         ).toString()
         const metaUrl = `${collectionUrl}meta`
-        // A Collection-level data grant: exactly the shape the rule refuses,
-        // since it cannot tell writing the container's description apart from
-        // writing a Resource inside it.
+        // A Collection-level data grant, the shape an app holds: it writes
+        // the Collection's Metadata object, which is how the app declares its
+        // own indexes and `encryption`. Deleting the Collection stays
+        // controller-only.
         const capability = await delegateInSpace({
           ctx,
           state,
@@ -605,16 +608,17 @@ export const containerRuleApi: Suite<State> = {
           capability,
           json: { id: collectionId, name: 'Rewritten By A Delegate' }
         })
-        assertRefused({
-          result,
-          message: 'a delegated PUT under a Collection-URL grant'
-        })
+        assert.equal(
+          result.status,
+          204,
+          'expected a delegated PUT under a Collection-URL grant to succeed'
+        )
         const after = await state.alice.rootClient.request({
           url: metaUrl,
           method: 'GET'
         })
         assert.equal(after.status, 200)
-        assert.equal(after.data.name, 'Unchanged Collection')
+        assert.equal(after.data.name, 'Rewritten By A Delegate')
       }
     },
     {

@@ -1,5 +1,14 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.18.0 - TBD
+
+### Changed
+
+- `container-rule-api`: `PUT /space/:s/:c/meta` under a grant targeting the
+  Collection URL is now asserted to succeed (204, the object rewritten) instead
+  of being refused. A Collection-scoped grant declares the Collection's own
+  indexes and `encryption`; Delete Collection stays root-only.
+
 ## 0.17.0 - 2026-09-13
 
 ### Added
