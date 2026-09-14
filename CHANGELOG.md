@@ -1,5 +1,16 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.19.0 - TBD
+
+### Added
+
+- New `service-description-api` suite: discovers the service description via the
+  `Link: rel="service"` header rather than a fixed path, checks the header and
+  `Access-Control-Expose-Headers` on a success, an error, a 308 redirect, and a
+  CORS preflight, validates the document against the data model and the
+  `https://w3id.org/pws` version 0.5 entry, and checks the optional
+  caching/conditional-read behavior.
+
 ## 0.18.0 - 2026-09-14
 
 ### Changed

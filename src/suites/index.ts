@@ -25,6 +25,7 @@ import { plaintextDeclarationApi } from './plaintext-declaration-api.js'
 import { policyApi } from './policy-api.js'
 import { reservedMethodsApi } from './reserved-methods-api.js'
 import { resourceApi } from './resource-api.js'
+import { serviceDescriptionApi } from './service-description-api.js'
 import { server } from './server.js'
 import { spacesApi } from './spaces-api.js'
 import { writeValidationApi } from './write-validation-api.js'
@@ -56,6 +57,7 @@ export const suites: Array<Suite<any>> = [
   policyApi,
   reservedMethodsApi,
   resourceApi,
+  serviceDescriptionApi,
   server,
   spacesApi,
   writeValidationApi
@@ -84,6 +86,7 @@ export {
   policyApi,
   reservedMethodsApi,
   resourceApi,
+  serviceDescriptionApi,
   server,
   spacesApi,
   writeValidationApi
