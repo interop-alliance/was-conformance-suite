@@ -50,7 +50,6 @@ export const clientBackends: Suite<State> = {
         id,
         name: 'My Google Drive',
         provider: 'google-drive',
-        storageMode: ['document', 'blob'],
         connection: {
           kind: 'oauth2-google',
           authorizationCode: 'secret-auth-code',
@@ -91,7 +90,6 @@ export const clientBackends: Suite<State> = {
         assert.equal(descriptor.name, 'My Google Drive')
         assert.equal(descriptor.managedBy, 'external')
         assert.equal(descriptor.provider, 'google-drive')
-        assert.deepStrictEqual(descriptor.storageMode, ['document', 'blob'])
         // The connection is sanitized: public fields surface (and `status` starts at
         // `registered`, since no provider adapter has connected it yet).
         const connection = descriptor.connection

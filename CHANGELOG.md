@@ -1,5 +1,12 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.20.0 - TBD
+
+### Changed
+
+- Backend descriptor checks no longer expect a `storageMode` member; the spec
+  dropped the property.
+
 ## 0.19.0 - 2026-09-14
 
 ### Added

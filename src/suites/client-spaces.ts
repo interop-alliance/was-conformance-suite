@@ -247,7 +247,6 @@ export const clientSpaces: Suite<State> = {
         assert.deepStrictEqual(rest, {
           id: 'default',
           managedBy: 'server',
-          storageMode: ['document', 'blob'],
           persistence: 'durable',
           features: [
             'conditional-writes',
@@ -327,7 +326,6 @@ export const clientSpaces: Suite<State> = {
         assert.deepStrictEqual(rest, {
           id: 'default',
           managedBy: 'server',
-          storageMode: ['document', 'blob'],
           persistence: 'durable',
           features: [
             'conditional-writes',
