@@ -93,17 +93,15 @@ async function assertTargetMismatchRejected(response: Response): Promise<void> {
   assert.equal(
     problem.type,
     response.status === 404
-      ? 'https://wallet.storage/spec#not-found'
-      : 'https://wallet.storage/spec#invalid-authorization-header'
+      ? 'https://w3id.org/pws#not-found'
+      : 'https://w3id.org/pws#invalid-authorization-header'
   )
 }
 
 export const invocationTargetApi: Suite<State> = {
   id: 'invocation-target-api',
   name: 'Capability invocationTarget binding',
-  specRefs: [
-    'https://wallet.storage/spec#authorization-actions-and-the-root-capability'
-  ],
+  specRefs: ['https://w3id.org/pws/authz-profile#capability-invocation'],
 
   setup: async ctx => {
     const alice: any = { ...ctx.actors.alice }
@@ -197,9 +195,7 @@ export const invocationTargetApi: Suite<State> = {
       name:
         '[delegated] a capability for one Resource does not read a sibling ' +
         'Resource',
-      specRefs: [
-        'https://wallet.storage/spec#authorization-actions-and-the-root-capability'
-      ],
+      specRefs: ['https://w3id.org/pws/authz-profile#capability-invocation'],
       run: async (ctx, state) => {
         const { alice, bob, docAUrl, docBUrl } = state
         const zcap = await alice.was.grant({
@@ -221,9 +217,7 @@ export const invocationTargetApi: Suite<State> = {
       name:
         '[delegated] a capability for one Resource does not delete a sibling ' +
         '(operation not performed)',
-      specRefs: [
-        'https://wallet.storage/spec#authorization-actions-and-the-root-capability'
-      ],
+      specRefs: ['https://w3id.org/pws/authz-profile#capability-invocation'],
       run: async (ctx, state) => {
         const { alice, bob, docAUrl, docBUrl } = state
         const zcap = await alice.was.grant({
@@ -253,9 +247,7 @@ export const invocationTargetApi: Suite<State> = {
       name:
         '[delegated] a Resource-scoped capability does not list the parent ' +
         'Collection',
-      specRefs: [
-        'https://wallet.storage/spec#authorization-actions-and-the-root-capability'
-      ],
+      specRefs: ['https://w3id.org/pws/authz-profile#capability-invocation'],
       run: async (ctx, state) => {
         const { alice, bob, docAUrl, collectionUrl } = state
         // The inverse of target attenuation: a capability scoped to a child
@@ -279,9 +271,7 @@ export const invocationTargetApi: Suite<State> = {
       name:
         '[delegated] a capability from one Space does not read a Resource ' +
         'in another Space (same controller)',
-      specRefs: [
-        'https://wallet.storage/spec#authorization-actions-and-the-root-capability'
-      ],
+      specRefs: ['https://w3id.org/pws/authz-profile#capability-invocation'],
       run: async (ctx, state) => {
         const { alice, bob, docAUrl, docCUrl } = state
         // Both Spaces are Alice's: the binding under test is the capability's

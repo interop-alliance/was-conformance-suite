@@ -38,9 +38,9 @@ interface State {
   spaceId: string
 }
 
-const NOT_FOUND = 'https://wallet.storage/spec#not-found'
-const CAPABILITY_REVOKED = 'https://wallet.storage/spec#capability-revoked'
-const CAPABILITY_EXPIRED = 'https://wallet.storage/spec#capability-expired'
+const NOT_FOUND = 'https://w3id.org/pws#not-found'
+const CAPABILITY_REVOKED = 'https://w3id.org/pws#capability-revoked'
+const CAPABILITY_EXPIRED = 'https://w3id.org/pws#capability-expired'
 
 /**
  * Reads the suite's document under `capability`, signing as `signer`, and
@@ -129,7 +129,7 @@ async function delegateAndRevoke({
 export const denialReasonsApi: Suite<State> = {
   id: 'denial-reasons-api',
   name: 'Typed denial reasons',
-  specRefs: ['https://wallet.storage/spec#error-type-registry'],
+  specRefs: ['https://w3id.org/pws#error-type-registry'],
 
   setup: async ctx => {
     const alice: any = { ...ctx.actors.alice }
@@ -182,7 +182,7 @@ export const denialReasonsApi: Suite<State> = {
       id: 'denial.expired',
       name: '[delegated] an expired capability is refused as capability-expired (404)',
       optional: true,
-      specRefs: ['https://wallet.storage/spec#error-type-registry'],
+      specRefs: ['https://w3id.org/pws#error-type-registry'],
       run: async (ctx, state) => {
         const { alice, aliceDelegatedApp, docUrl } = state
         // Backdating `now` two hours also backdates the default `expires`
@@ -208,7 +208,7 @@ export const denialReasonsApi: Suite<State> = {
       id: 'denial.expired-other-holder',
       name: '[delegated] an expired capability invoked by someone other than its controller is the plain not-found',
       optional: true,
-      specRefs: ['https://wallet.storage/spec#error-type-registry'],
+      specRefs: ['https://w3id.org/pws#error-type-registry'],
       run: async (ctx, state) => {
         const { alice, aliceDelegatedApp, bob, docUrl } = state
         const capability = await alice.rootClient.delegate({
@@ -233,7 +233,7 @@ export const denialReasonsApi: Suite<State> = {
       id: 'denial.revoked',
       name: '[delegated] a revoked capability is refused as capability-revoked (404)',
       optional: true,
-      specRefs: ['https://wallet.storage/spec#error-type-registry'],
+      specRefs: ['https://w3id.org/pws#error-type-registry'],
       run: async (ctx, state) => {
         const capability = await delegateAndRevoke({ ctx, state })
         const { status, problem } = await readDoc({
@@ -250,7 +250,7 @@ export const denialReasonsApi: Suite<State> = {
       id: 'denial.revoked-other-holder',
       name: '[delegated] a revoked capability invoked by someone other than its controller is the plain not-found',
       optional: true,
-      specRefs: ['https://wallet.storage/spec#error-type-registry'],
+      specRefs: ['https://w3id.org/pws#error-type-registry'],
       run: async (ctx, state) => {
         const capability = await delegateAndRevoke({ ctx, state })
         // Bob holds a copy of the revoked grant but not the app's key, so he
@@ -269,8 +269,8 @@ export const denialReasonsApi: Suite<State> = {
       id: 'denial.other-cause-not-found',
       name: '[delegated] a capability refused for any other reason stays the merged not-found (404)',
       specRefs: [
-        'https://wallet.storage/spec#error-type-registry',
-        'https://wallet.storage/spec#error-handling'
+        'https://w3id.org/pws#error-type-registry',
+        'https://w3id.org/pws#error-handling'
       ],
       run: async (ctx, state) => {
         const { alice, aliceDelegatedApp, docUrl } = state

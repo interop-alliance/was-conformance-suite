@@ -4,15 +4,13 @@
 /**
  * WAS conformance tests -- the `blinded-index` query profile (matching over
  * client-computed blinded / HMAC'd attributes, served at
- * `POST /space/:s/:c/query`; spec "Query Profile Registry", the
- * `blinded-index-query` backend feature).
+ * `POST /space/:s/:c/query`; spec "Query Profile Registry").
  *
- * The profile is an OPTIONAL spec feature: a server opts in by advertising the
- * `blinded-index-query` feature on a backend it hosts. This suite is therefore
- * NOT suite-level optional -- once a server advertises the feature, the
- * profile's MUSTs are required-tier. `setup()` detects the feature via the
- * Space's `GET .../backends` descriptor list; when it is absent, every test
- * calls `ctx.skip(...)`.
+ * The profile is OPTIONAL, advertised by the `blinded-index-query` token of the
+ * Encrypted Collections entry in the service description. This suite is
+ * therefore NOT suite-level optional -- once a server advertises the token, the
+ * profile's MUSTs are required-tier. `setup()` reads that document; when the
+ * token is absent, every test calls `ctx.skip(...)`.
  *
  * The stored documents are EDV encrypted-document envelopes whose `indexed`
  * attributes stand in for the client's HMAC-blinded base64url tokens -- the
@@ -28,6 +26,10 @@
  * hand-built fixtures cannot show.
  */
 import assert from '../harness/assert.js'
+import {
+  ENCRYPTED_COLLECTIONS_IDENTIFIER,
+  serviceFeatures
+} from '../harness/serviceDescription.js'
 import type { Suite } from '../harness/types.js'
 
 import { ConflictError, WasClient } from '@interop/was-client'
@@ -144,8 +146,8 @@ export const blindedIndexApi: Suite<State> = {
   id: 'blinded-index-api',
   name: 'Blinded-index query profile',
   specRefs: [
-    'https://wallet.storage/spec#query-profile-blinded-index',
-    'https://wallet.storage/spec#query-profile-registry'
+    'https://w3id.org/pws#query-profile-blinded-index',
+    'https://w3id.org/pws#query-profile-registry'
   ],
 
   setup: async ctx => {
@@ -179,20 +181,11 @@ export const blindedIndexApi: Suite<State> = {
       rootClient: alice.rootClient
     })
 
-    // Detect the OPTIONAL feature from the Space's backend descriptor list. The
-    // list is a bare array of descriptors, each carrying a `features` array.
-    const backendsResponse = await alice.rootClient.request({
-      url: new URL(
-        `/space/${alice.space1.id}/backends`,
-        ctx.serverUrl
-      ).toString(),
-      method: 'GET'
+    const features = await serviceFeatures({
+      serverUrl: ctx.serverUrl,
+      specIdentifier: ENCRYPTED_COLLECTIONS_IDENTIFIER
     })
-    const advertised = Array.isArray(backendsResponse.data)
-      ? backendsResponse.data.some((backend: any) =>
-          (backend?.features ?? []).includes('blinded-index-query')
-        )
-      : false
+    const advertised = features.includes('blinded-index-query')
 
     // Seed fixtures only when the feature is supported; otherwise every test
     // skips and nothing needs to be provisioned.
@@ -340,11 +333,11 @@ export const blindedIndexApi: Suite<State> = {
     {
       id: 'blinded.equals-match-ascending',
       name: '[root] equals matches documents by blinded term, ascending by id',
-      specRefs: ['https://wallet.storage/spec#query-profile-blinded-index'],
+      specRefs: ['https://w3id.org/pws#query-profile-blinded-index'],
       run: async (ctx, state) => {
         const { alice, advertised, queryUrl } = state
         if (!advertised) {
-          ctx.skip('backend does not advertise blinded-index-query')
+          ctx.skip('the server does not advertise blinded-index-query')
         }
         const response = await alice.rootClient.request({
           url: queryUrl('vault'),
@@ -377,11 +370,11 @@ export const blindedIndexApi: Suite<State> = {
     {
       id: 'blinded.has-match',
       name: '[root] has matches documents carrying every named blinded attribute',
-      specRefs: ['https://wallet.storage/spec#query-profile-blinded-index'],
+      specRefs: ['https://w3id.org/pws#query-profile-blinded-index'],
       run: async (ctx, state) => {
         const { alice, advertised, queryUrl } = state
         if (!advertised) {
-          ctx.skip('backend does not advertise blinded-index-query')
+          ctx.skip('the server does not advertise blinded-index-query')
         }
         // Only `alpha` carries both `n1` and `n2`.
         const response = await alice.rootClient.request({
@@ -404,11 +397,11 @@ export const blindedIndexApi: Suite<State> = {
     {
       id: 'blinded.count-shape',
       name: '[root] count:true returns exactly a { count } shape',
-      specRefs: ['https://wallet.storage/spec#query-profile-blinded-index'],
+      specRefs: ['https://w3id.org/pws#query-profile-blinded-index'],
       run: async (ctx, state) => {
         const { alice, advertised, queryUrl } = state
         if (!advertised) {
-          ctx.skip('backend does not advertise blinded-index-query')
+          ctx.skip('the server does not advertise blinded-index-query')
         }
         // `n1:v1` (alpha, beta) OR `n1:vX` (gamma) matches all three.
         const response = await alice.rootClient.request({
@@ -431,13 +424,13 @@ export const blindedIndexApi: Suite<State> = {
       name: '[root] a limited page pairs hasMore with an opaque continuation cursor',
       optional: true,
       specRefs: [
-        'https://wallet.storage/spec#query-profile-blinded-index',
-        'https://wallet.storage/spec#pagination'
+        'https://w3id.org/pws#query-profile-blinded-index',
+        'https://w3id.org/pws#pagination'
       ],
       run: async (ctx, state) => {
         const { alice, advertised, queryUrl } = state
         if (!advertised) {
-          ctx.skip('backend does not advertise blinded-index-query')
+          ctx.skip('the server does not advertise blinded-index-query')
         }
         const firstPage = await alice.rootClient.request({
           url: queryUrl('vault'),
@@ -494,13 +487,13 @@ export const blindedIndexApi: Suite<State> = {
       id: 'blinded.invalid-query-body-400',
       name: '[root] a body with neither, or both, of equals/has is invalid-request-body (400)',
       specRefs: [
-        'https://wallet.storage/spec#query-profile-blinded-index',
-        'https://wallet.storage/spec#invalid-request-body'
+        'https://w3id.org/pws#query-profile-blinded-index',
+        'https://w3id.org/pws#invalid-request-body'
       ],
       run: async (ctx, state) => {
         const { alice, advertised, queryUrl } = state
         if (!advertised) {
-          ctx.skip('backend does not advertise blinded-index-query')
+          ctx.skip('the server does not advertise blinded-index-query')
         }
 
         // Neither `equals` nor `has`.
@@ -523,7 +516,7 @@ export const blindedIndexApi: Suite<State> = {
         )
         assert.equal(
           neitherError.data.type,
-          'https://wallet.storage/spec#invalid-request-body'
+          'https://w3id.org/pws#invalid-request-body'
         )
 
         // Both `equals` and `has`.
@@ -547,7 +540,7 @@ export const blindedIndexApi: Suite<State> = {
         assert.equal(bothError.response.status, 400)
         assert.equal(
           bothError.data.type,
-          'https://wallet.storage/spec#invalid-request-body'
+          'https://w3id.org/pws#invalid-request-body'
         )
 
         // Missing the REQUIRED `index`.
@@ -566,7 +559,7 @@ export const blindedIndexApi: Suite<State> = {
         assert.equal(missingIndexError.response.status, 400)
         assert.equal(
           missingIndexError.data.type,
-          'https://wallet.storage/spec#invalid-request-body'
+          'https://w3id.org/pws#invalid-request-body'
         )
       }
     },
@@ -574,13 +567,13 @@ export const blindedIndexApi: Suite<State> = {
       id: 'blinded.invalid-cursor-400',
       name: '[root] a malformed continuation cursor is invalid-cursor (400)',
       specRefs: [
-        'https://wallet.storage/spec#query-profile-blinded-index',
-        'https://wallet.storage/spec#invalid-cursor'
+        'https://w3id.org/pws#query-profile-blinded-index',
+        'https://w3id.org/pws#invalid-cursor'
       ],
       run: async (ctx, state) => {
         const { alice, advertised, queryUrl } = state
         if (!advertised) {
-          ctx.skip('backend does not advertise blinded-index-query')
+          ctx.skip('the server does not advertise blinded-index-query')
         }
         let cursorError: any
         try {
@@ -602,7 +595,7 @@ export const blindedIndexApi: Suite<State> = {
         assert.equal(cursorError.response.status, 400)
         assert.equal(
           cursorError.data.type,
-          'https://wallet.storage/spec#invalid-cursor'
+          'https://w3id.org/pws#invalid-cursor'
         )
       }
     },
@@ -610,13 +603,13 @@ export const blindedIndexApi: Suite<State> = {
       id: 'blinded.unique-conflict-409',
       name: '[root] a write claiming a held unique blinded triple is id-conflict (409)',
       specRefs: [
-        'https://wallet.storage/spec#unique-blinded-attributes',
-        'https://wallet.storage/spec#id-conflict'
+        'https://w3id.org/pws#unique-blinded-attributes',
+        'https://w3id.org/pws#id-conflict'
       ],
       run: async (ctx, state) => {
         const { alice, advertised, resourceUrl } = state
         if (!advertised) {
-          ctx.skip('backend does not advertise blinded-index-query')
+          ctx.skip('the server does not advertise blinded-index-query')
         }
         // `holder` already claims `un1:uv1` with unique:true; a different
         // Resource claiming the same triple must be rejected.
@@ -641,7 +634,7 @@ export const blindedIndexApi: Suite<State> = {
         assert.equal(conflictError.response.status, 409)
         assert.equal(
           conflictError.data.type,
-          'https://wallet.storage/spec#id-conflict'
+          'https://w3id.org/pws#id-conflict'
         )
 
         // The same pair carried WITHOUT `unique` coexists freely (both-sides
@@ -662,14 +655,14 @@ export const blindedIndexApi: Suite<State> = {
       id: 'blinded.authz-before-uniqueness-404',
       name: "[root] Bob's write of a held unique triple into Alice's collection is 404, not 409",
       specRefs: [
-        'https://wallet.storage/spec#unique-blinded-attributes',
-        'https://wallet.storage/spec#error-type-registry',
-        'https://wallet.storage/spec#not-found'
+        'https://w3id.org/pws#unique-blinded-attributes',
+        'https://w3id.org/pws#error-type-registry',
+        'https://w3id.org/pws#not-found'
       ],
       run: async (ctx, state) => {
         const { bob, advertised, resourceUrl } = state
         if (!advertised) {
-          ctx.skip('backend does not advertise blinded-index-query')
+          ctx.skip('the server does not advertise blinded-index-query')
         }
         // Authorization MUST be verified before the uniqueness check: a 409
         // here would let Bob probe Alice's Collection for held unique triples.
@@ -693,10 +686,7 @@ export const blindedIndexApi: Suite<State> = {
           maskedError.response.headers.get('content-type'),
           /application\/problem\+json/
         )
-        assert.equal(
-          maskedError.data.type,
-          'https://wallet.storage/spec#not-found'
-        )
+        assert.equal(maskedError.data.type, 'https://w3id.org/pws#not-found')
       }
     },
     {
@@ -704,13 +694,13 @@ export const blindedIndexApi: Suite<State> = {
       name: 'codec-written documents match on equals and round-trip decrypted',
       group: CODEC_GROUP,
       specRefs: [
-        'https://wallet.storage/spec#query-profile-blinded-index',
-        'https://wallet.storage/spec#encryption-scheme-registry'
+        'https://w3id.org/pws#query-profile-blinded-index',
+        'https://w3id.org/pws#encryption-scheme-registry'
       ],
       run: async (ctx, state) => {
         const { advertised, codec } = state
         if (!advertised) {
-          ctx.skip('backend does not advertise blinded-index-query')
+          ctx.skip('the server does not advertise blinded-index-query')
         }
         assert.ok(codec, 'expected the codec-path fixtures')
         // The tokens are computed by the client's blinding key, so a match
@@ -729,11 +719,11 @@ export const blindedIndexApi: Suite<State> = {
       id: 'blinded.codec-has-and-count',
       name: 'codec-written documents match on has, and count returns just the tally',
       group: CODEC_GROUP,
-      specRefs: ['https://wallet.storage/spec#query-profile-blinded-index'],
+      specRefs: ['https://w3id.org/pws#query-profile-blinded-index'],
       run: async (ctx, state) => {
         const { advertised, codec } = state
         if (!advertised) {
-          ctx.skip('backend does not advertise blinded-index-query')
+          ctx.skip('the server does not advertise blinded-index-query')
         }
         assert.ok(codec, 'expected the codec-path fixtures')
         // Every document carries the declared attribute, whatever its value.
@@ -754,13 +744,13 @@ export const blindedIndexApi: Suite<State> = {
       name: 'a codec write colliding on a unique declared attribute is id-conflict (409)',
       group: CODEC_GROUP,
       specRefs: [
-        'https://wallet.storage/spec#unique-blinded-attributes',
-        'https://wallet.storage/spec#id-conflict'
+        'https://w3id.org/pws#unique-blinded-attributes',
+        'https://w3id.org/pws#id-conflict'
       ],
       run: async (ctx, state) => {
         const { advertised, codec } = state
         if (!advertised) {
-          ctx.skip('backend does not advertise blinded-index-query')
+          ctx.skip('the server does not advertise blinded-index-query')
         }
         assert.ok(codec, 'expected the codec-path fixtures')
         // `content.serial` is declared unique, so the codec stamps its blinded

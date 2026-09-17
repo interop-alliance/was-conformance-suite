@@ -169,7 +169,7 @@ interface PwsVersionEntry {
 export const serviceDescriptionApi: Suite<State> = {
   id: 'service-description-api',
   name: 'Service Description',
-  specRefs: ['https://wallet.storage/spec#service-description'],
+  specRefs: ['https://w3id.org/pws#service-description'],
 
   setup: async ctx => {
     // The spec's own discovery example starts a HEAD/GET from any URL the
@@ -184,9 +184,7 @@ export const serviceDescriptionApi: Suite<State> = {
     {
       id: 'service-description.discovery-via-link-header',
       name: 'the service description is discovered via the Link rel="service" header, not a fixed path',
-      specRefs: [
-        'https://wallet.storage/spec#discovering-the-service-description'
-      ],
+      specRefs: ['https://w3id.org/pws#discovering-the-service-description'],
       run: async (ctx, state) => {
         const response = await fetch(ctx.serverUrl)
         const target = findServiceLink(response, ctx.serverUrl)
@@ -201,8 +199,8 @@ export const serviceDescriptionApi: Suite<State> = {
       id: 'service-description.link-on-success',
       name: 'the Link header is present on the service description itself (200), with ACAO: *',
       specRefs: [
-        'https://wallet.storage/spec#discovering-the-service-description',
-        'https://wallet.storage/spec#read-service-description-operation'
+        'https://w3id.org/pws#discovering-the-service-description',
+        'https://w3id.org/pws#read-service-description-operation'
       ],
       run: async (ctx, state) => {
         const response = await fetch(state.serviceUrl, {
@@ -224,9 +222,7 @@ export const serviceDescriptionApi: Suite<State> = {
     {
       id: 'service-description.link-on-error',
       name: 'the Link header is present on an anonymous read of an absent Space (error response)',
-      specRefs: [
-        'https://wallet.storage/spec#discovering-the-service-description'
-      ],
+      specRefs: ['https://w3id.org/pws#discovering-the-service-description'],
       run: async (ctx, state) => {
         const absentSpaceUrl = new URL(
           `/space/${ctx.generateId()}/`,
@@ -244,9 +240,7 @@ export const serviceDescriptionApi: Suite<State> = {
     {
       id: 'service-description.link-on-redirect',
       name: 'the Link header is present on a 308 slash-variant redirect',
-      specRefs: [
-        'https://wallet.storage/spec#discovering-the-service-description'
-      ],
+      specRefs: ['https://w3id.org/pws#discovering-the-service-description'],
       run: async (ctx, state) => {
         const noSlashUrl = new URL(
           `/space/${ctx.generateId()}`,
@@ -264,9 +258,7 @@ export const serviceDescriptionApi: Suite<State> = {
     {
       id: 'service-description.link-on-preflight',
       name: 'the Link header is present on a CORS preflight (OPTIONS)',
-      specRefs: [
-        'https://wallet.storage/spec#discovering-the-service-description'
-      ],
+      specRefs: ['https://w3id.org/pws#discovering-the-service-description'],
       run: async (ctx, state) => {
         const targetUrl = new URL(
           `/space/${ctx.generateId()}/`,
@@ -289,7 +281,7 @@ export const serviceDescriptionApi: Suite<State> = {
     {
       id: 'service-description.data-model',
       name: 'the document validates against the Service Description Data Model (no capability invocation)',
-      specRefs: ['https://wallet.storage/spec#service-description-data-model'],
+      specRefs: ['https://w3id.org/pws#service-description-data-model'],
       run: async (ctx, state) => {
         const response = await fetch(state.serviceUrl)
         assert.equal(response.status, 200)
@@ -329,7 +321,7 @@ export const serviceDescriptionApi: Suite<State> = {
     {
       id: 'service-description.pws-version-entry',
       name: 'the https://w3id.org/pws entry for version 0.5 has well-formed optional members',
-      specRefs: ['https://wallet.storage/spec#service-description-data-model'],
+      specRefs: ['https://w3id.org/pws#service-description-data-model'],
       run: async (ctx, state) => {
         const response = await fetch(state.serviceUrl)
         const document = (await response.json()) as {
@@ -366,9 +358,9 @@ export const serviceDescriptionApi: Suite<State> = {
       id: 'service-description.pws-spaces-repository',
       name: "the pws entry's spaces URL, when present, answers GET as a Spaces Repository listing",
       specRefs: [
-        'https://wallet.storage/spec#service-description-data-model',
-        'https://wallet.storage/spec#spaces-repositories',
-        'https://wallet.storage/spec#list-spaces-operation'
+        'https://w3id.org/pws#service-description-data-model',
+        'https://w3id.org/pws#spaces-repositories',
+        'https://w3id.org/pws#list-spaces-operation'
       ],
       run: async (ctx, state) => {
         const response = await fetch(state.serviceUrl)
@@ -400,9 +392,7 @@ export const serviceDescriptionApi: Suite<State> = {
       id: 'service-description.cacheable',
       name: 'the document SHOULD be cacheable: Cache-Control and ETag, honored by a conditional re-read',
       optional: true,
-      specRefs: [
-        'https://wallet.storage/spec#read-service-description-operation'
-      ],
+      specRefs: ['https://w3id.org/pws#read-service-description-operation'],
       run: async (ctx, state) => {
         const response = await fetch(state.serviceUrl)
         assert.equal(response.status, 200)

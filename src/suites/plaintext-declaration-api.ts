@@ -48,7 +48,7 @@ export const plaintextDeclarationApi: Suite<State> = {
   id: 'plaintext-declaration-api',
   name: 'Plaintext declaration API',
   optional: true,
-  specRefs: ['https://wallet.storage/spec#collection-metadata-data-model'],
+  specRefs: ['https://w3id.org/pws#collection-metadata-data-model'],
 
   setup: async ctx => {
     const { serverUrl } = ctx
@@ -126,7 +126,7 @@ export const plaintextDeclarationApi: Suite<State> = {
     {
       id: 'plaintext.persist-echo-post',
       name: '[root] persists and echoes plaintext.indexes on POST create and on GET',
-      specRefs: ['https://wallet.storage/spec#collection-metadata-data-model'],
+      specRefs: ['https://w3id.org/pws#collection-metadata-data-model'],
       run: async (ctx, state) => {
         const { createCollection, readCollection } = state
         const plaintext = {
@@ -152,7 +152,7 @@ export const plaintextDeclarationApi: Suite<State> = {
     {
       id: 'plaintext.persist-echo-put',
       name: '[root] persists and echoes plaintext.indexes on PUT create-by-id',
-      specRefs: ['https://wallet.storage/spec#collection-metadata-data-model'],
+      specRefs: ['https://w3id.org/pws#collection-metadata-data-model'],
       run: async (ctx, state) => {
         const { putCollection, readCollection } = state
         const response = await putCollection('posts-put', {
@@ -172,8 +172,8 @@ export const plaintextDeclarationApi: Suite<State> = {
       id: 'plaintext.both-on-create-400',
       name: '[root] plaintext and encryption both present on create is invalid-request-body (400), even an empty plaintext',
       specRefs: [
-        'https://wallet.storage/spec#collection-metadata-data-model',
-        'https://wallet.storage/spec#invalid-request-body'
+        'https://w3id.org/pws#collection-metadata-data-model',
+        'https://w3id.org/pws#invalid-request-body'
       ],
       run: async (ctx, state) => {
         const { createCollection, putCollection } = state
@@ -198,7 +198,7 @@ export const plaintextDeclarationApi: Suite<State> = {
           assert.equal(postError.response.status, 400)
           assert.equal(
             postError.data.type,
-            'https://wallet.storage/spec#invalid-request-body'
+            'https://w3id.org/pws#invalid-request-body'
           )
           const putError = await rejection(
             putCollection(body.id, body),
@@ -207,7 +207,7 @@ export const plaintextDeclarationApi: Suite<State> = {
           assert.equal(putError.response.status, 400)
           assert.equal(
             putError.data.type,
-            'https://wallet.storage/spec#invalid-request-body'
+            'https://w3id.org/pws#invalid-request-body'
           )
         }
       }
@@ -216,8 +216,8 @@ export const plaintextDeclarationApi: Suite<State> = {
       id: 'plaintext.both-on-update-400',
       name: '[root] an update whose result carries both plaintext and encryption is invalid-request-body (400), in either direction',
       specRefs: [
-        'https://wallet.storage/spec#collection-metadata-data-model',
-        'https://wallet.storage/spec#invalid-request-body'
+        'https://w3id.org/pws#collection-metadata-data-model',
+        'https://w3id.org/pws#invalid-request-body'
       ],
       run: async (ctx, state) => {
         const { createCollection, putCollection, readCollection } = state
@@ -243,7 +243,7 @@ export const plaintextDeclarationApi: Suite<State> = {
           assert.equal(err.response.status, 400)
           assert.equal(
             err.data.type,
-            'https://wallet.storage/spec#invalid-request-body'
+            'https://w3id.org/pws#invalid-request-body'
           )
         }
         const encrypted = await readCollection('enc-first')
@@ -260,10 +260,7 @@ export const plaintextDeclarationApi: Suite<State> = {
           'expected adding encryption to a plaintext-declared Collection to be rejected'
         )
         assert.equal(err.response.status, 400)
-        assert.equal(
-          err.data.type,
-          'https://wallet.storage/spec#invalid-request-body'
-        )
+        assert.equal(err.data.type, 'https://w3id.org/pws#invalid-request-body')
         const plain = await readCollection('plain-first')
         assert.deepStrictEqual(plain.data.plaintext, {})
         assert.equal(plain.data.encryption, undefined)
@@ -272,7 +269,7 @@ export const plaintextDeclarationApi: Suite<State> = {
     {
       id: 'plaintext.malformed-400',
       name: '[root] rejects a malformed plaintext member (400 invalid-request-body)',
-      specRefs: ['https://wallet.storage/spec#invalid-request-body'],
+      specRefs: ['https://w3id.org/pws#invalid-request-body'],
       run: async (ctx, state) => {
         const { createCollection, readCollection } = state
         const malformed: Array<{ label: string; plaintext: unknown }> = [
@@ -304,7 +301,7 @@ export const plaintextDeclarationApi: Suite<State> = {
           assert.equal(err.response.status, 400, label)
           assert.equal(
             err.data.type,
-            'https://wallet.storage/spec#invalid-request-body',
+            'https://w3id.org/pws#invalid-request-body',
             label
           )
         }
@@ -319,7 +316,7 @@ export const plaintextDeclarationApi: Suite<State> = {
     {
       id: 'plaintext.updatable',
       name: '[root] plaintext is updatable on an existing Collection: added, changed, and emptied with {}; an absent member is left untouched',
-      specRefs: ['https://wallet.storage/spec#collection-metadata-data-model'],
+      specRefs: ['https://w3id.org/pws#collection-metadata-data-model'],
       run: async (ctx, state) => {
         const { createCollection, putCollection, readCollection } = state
         // Born without `plaintext`.
@@ -361,8 +358,8 @@ export const plaintextDeclarationApi: Suite<State> = {
       id: 'plaintext.unique-conflict-409',
       name: '[root] a write claiming a held unique plaintext attribute value is id-conflict (409)',
       specRefs: [
-        'https://wallet.storage/spec#collection-metadata-data-model',
-        'https://wallet.storage/spec#id-conflict'
+        'https://w3id.org/pws#collection-metadata-data-model',
+        'https://w3id.org/pws#id-conflict'
       ],
       run: async (ctx, state) => {
         const { alice, createCollection, resourceUrl } = state
@@ -391,7 +388,7 @@ export const plaintextDeclarationApi: Suite<State> = {
         assert.equal(conflictError.response.status, 409)
         assert.equal(
           conflictError.data.type,
-          'https://wallet.storage/spec#id-conflict'
+          'https://w3id.org/pws#id-conflict'
         )
 
         // The holder re-asserting its own value never self-conflicts.
@@ -417,8 +414,8 @@ export const plaintextDeclarationApi: Suite<State> = {
       id: 'plaintext.unique-declare-conflict-409',
       name: '[root] promoting an attribute to unique over Resources that already collide is id-conflict (409)',
       specRefs: [
-        'https://wallet.storage/spec#collection-metadata-data-model',
-        'https://wallet.storage/spec#id-conflict'
+        'https://w3id.org/pws#collection-metadata-data-model',
+        'https://w3id.org/pws#id-conflict'
       ],
       run: async (ctx, state) => {
         const {
@@ -448,7 +445,7 @@ export const plaintextDeclarationApi: Suite<State> = {
           'expected the unique promotion over colliding Resources to be rejected'
         )
         assert.equal(err.response.status, 409)
-        assert.equal(err.data.type, 'https://wallet.storage/spec#id-conflict')
+        assert.equal(err.data.type, 'https://w3id.org/pws#id-conflict')
         // The stored declaration is unchanged.
         const read = await readCollection('late-unique')
         assert.deepStrictEqual(read.data.plaintext, { indexes: ['slug'] })

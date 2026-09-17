@@ -2,14 +2,20 @@
  * Copyright (c) 2026 Interop Alliance. All rights reserved.
  */
 /**
- * WAS conformance tests -- Chunked Resources (the `chunked-streams` feature).
+ * WAS conformance tests -- Chunked Resources.
  *
- * Chunked Resources are an OPTIONAL feature (spec "Chunked Resources"), gated on
- * a backend advertising the `chunked-streams` token in its Backend description.
- * Rather than mark the whole suite optional, setup() probes the Space's backend
- * list for that token and stashes the result; each test skips when the feature
- * is absent. Once a backend advertises `chunked-streams` the behaviors below are
- * MUST-level, so the tests run at the required tier.
+ * The chunk endpoints belong to the Encrypted Collections profile, not to WAS
+ * core. That spec's "Chunked resources" section owns the paths, the canonical
+ * index rule, the error types, the lifecycle, and the authorization scoping;
+ * WAS core keeps only the `chunks` row of its Reserved Path Segment Registry,
+ * naming that document as the owner. Serving the endpoints is required of a
+ * server that implements the profile, and no feature token advertises them.
+ *
+ * No feature token advertises the endpoints: listing the Encrypted Collections
+ * profile under `specs` in the service description is itself the claim that
+ * they are served. So setup() reads that document and each test skips when the
+ * server lists no entry under the profile's identifier; where it does, the
+ * behaviors below run at their MUST-level tier.
  *
  * A chunk is addressed at
  * `/space/{space}/{collection}/{resource}/chunks/{index}` in member form and
@@ -22,6 +28,10 @@ import { signCapabilityInvocation } from '@interop/http-signature-zcap-invoke'
 import type { ISigner } from '@interop/data-integrity-core'
 import type { IZcap } from '@interop/data-integrity-core/zcap'
 import assert from '../harness/assert.js'
+import {
+  ENCRYPTED_COLLECTIONS_IDENTIFIER,
+  servesSpec
+} from '../harness/serviceDescription.js'
 import type { Suite } from '../harness/types.js'
 
 interface State {
@@ -126,7 +136,7 @@ async function resolveStatus(
 export const chunksApi: Suite<State> = {
   id: 'chunks-api',
   name: 'Chunked Resources API',
-  specRefs: ['https://wallet.storage/spec#chunked-resources'],
+  specRefs: ['https://w3id.org/pws/encrypted-collections#chunked-resources'],
 
   setup: async ctx => {
     const alice: any = { ...ctx.actors.alice }
@@ -198,24 +208,12 @@ export const chunksApi: Suite<State> = {
       json: { id: 'vault', name: 'Vault', encryption: { scheme: 'edv' } }
     })
 
-    // Discover whether any of the Space's backends advertises `chunked-streams`
-    // (spec "Backends"). Absent the token the endpoints are OPTIONAL and each
-    // test skips.
-    const backendsResponse = await alice.rootClient.request({
-      url: new URL(
-        `/space/${alice.space1.id}/backends`,
-        ctx.serverUrl
-      ).toString(),
-      method: 'GET'
+    // Listing the Encrypted Collections profile is the claim that the chunk
+    // endpoints are served; a server that lists no entry serves none.
+    const chunkedSupported = await servesSpec({
+      serverUrl: ctx.serverUrl,
+      specIdentifier: ENCRYPTED_COLLECTIONS_IDENTIFIER
     })
-    const backends: Array<{ features?: string[] }> = Array.isArray(
-      backendsResponse.data
-    )
-      ? backendsResponse.data
-      : (backendsResponse.data?.backends ?? [])
-    const chunkedSupported = backends.some(backend =>
-      backend.features?.includes('chunked-streams')
-    )
 
     async function createParent(resourceId: string): Promise<void> {
       await alice.rootClient.request({
@@ -254,14 +252,14 @@ export const chunksApi: Suite<State> = {
       id: 'chunks.roundtrip-put-get-head-delete',
       name: '[root] PUT / GET / HEAD / DELETE a raw octet-stream chunk round-trips',
       specRefs: [
-        'https://wallet.storage/spec#store-chunk-operation',
-        'https://wallet.storage/spec#read-chunk-operation',
-        'https://wallet.storage/spec#delete-chunk-operation'
+        'https://w3id.org/pws/encrypted-collections#store-chunk-operation',
+        'https://w3id.org/pws/encrypted-collections#read-chunk-operation',
+        'https://w3id.org/pws/encrypted-collections#delete-chunk-operation'
       ],
       run: async (ctx, state) => {
         const { alice, chunkUrl, chunkedSupported, createParent } = state
         if (!chunkedSupported) {
-          ctx.skip('backend does not advertise chunked-streams')
+          ctx.skip('the server lists no Encrypted Collections entry')
         }
         const resourceId = 'binary-blob'
         await createParent(resourceId)
@@ -330,13 +328,13 @@ export const chunksApi: Suite<State> = {
       id: 'chunks.non-canonical-index-invalid-id',
       name: '[root] a non-canonical {index} is rejected with 400 invalid-id',
       specRefs: [
-        'https://wallet.storage/spec#the-chunk-address',
-        'https://wallet.storage/spec#invalid-id'
+        'https://w3id.org/pws/encrypted-collections#chunk-address',
+        'https://w3id.org/pws#invalid-id'
       ],
       run: async (ctx, state) => {
         const { alice, chunkUrl, chunkedSupported, createParent } = state
         if (!chunkedSupported) {
-          ctx.skip('backend does not advertise chunked-streams')
+          ctx.skip('the server lists no Encrypted Collections entry')
         }
         const resourceId = 'bad-index'
         await createParent(resourceId)
@@ -362,7 +360,7 @@ export const chunksApi: Suite<State> = {
           )
           assert.equal(
             readResult.type,
-            'https://wallet.storage/spec#invalid-id',
+            'https://w3id.org/pws#invalid-id',
             `expected invalid-id for chunk index "${badIndex}"`
           )
         }
@@ -377,20 +375,20 @@ export const chunksApi: Suite<State> = {
           })
         )
         assert.equal(writeResult.status, 400)
-        assert.equal(writeResult.type, 'https://wallet.storage/spec#invalid-id')
+        assert.equal(writeResult.type, 'https://w3id.org/pws#invalid-id')
       }
     },
     {
       id: 'chunks.opaque-body-not-parsed',
       name: '[root] a chunk body is stored verbatim and never parsed, even under an encryption descriptor',
       specRefs: [
-        'https://wallet.storage/spec#store-chunk-operation',
-        'https://wallet.storage/spec#read-chunk-operation'
+        'https://w3id.org/pws/encrypted-collections#store-chunk-operation',
+        'https://w3id.org/pws/encrypted-collections#read-chunk-operation'
       ],
       run: async (ctx, state) => {
         const { alice, chunkUrl, resourceUrl, chunkedSupported } = state
         if (!chunkedSupported) {
-          ctx.skip('backend does not advertise chunked-streams')
+          ctx.skip('the server lists no Encrypted Collections entry')
         }
         // The parent Resource lives in the encrypted `vault` Collection, so its
         // own content MUST be a conforming EDV envelope...
@@ -435,11 +433,13 @@ export const chunksApi: Suite<State> = {
     {
       id: 'chunks.put-missing-parent-404',
       name: '[root] a chunk PUT to a missing parent Resource is rejected with 404',
-      specRefs: ['https://wallet.storage/spec#store-chunk-operation'],
+      specRefs: [
+        'https://w3id.org/pws/encrypted-collections#store-chunk-operation'
+      ],
       run: async (ctx, state) => {
         const { alice, chunkUrl, chunkedSupported } = state
         if (!chunkedSupported) {
-          ctx.skip('backend does not advertise chunked-streams')
+          ctx.skip('the server lists no Encrypted Collections entry')
         }
         // No parent Resource was created: the parent MUST already exist, so a
         // chunk can never be orphaned.
@@ -461,11 +461,13 @@ export const chunksApi: Suite<State> = {
     {
       id: 'chunks.delete-absent-not-idempotent',
       name: '[root] deleting an absent chunk is 404 (not idempotent), unlike Delete Resource',
-      specRefs: ['https://wallet.storage/spec#delete-chunk-operation'],
+      specRefs: [
+        'https://w3id.org/pws/encrypted-collections#delete-chunk-operation'
+      ],
       run: async (ctx, state) => {
         const { alice, chunkUrl, chunkedSupported, createParent } = state
         if (!chunkedSupported) {
-          ctx.skip('backend does not advertise chunked-streams')
+          ctx.skip('the server lists no Encrypted Collections entry')
         }
         const resourceId = 'delete-absent'
         await createParent(resourceId)
@@ -484,7 +486,9 @@ export const chunksApi: Suite<State> = {
     {
       id: 'chunks.list-reflects-stored-and-empty',
       name: '[root] the chunk listing reports stored chunks in index order, and count 0 once emptied',
-      specRefs: ['https://wallet.storage/spec#list-chunks-operation'],
+      specRefs: [
+        'https://w3id.org/pws/encrypted-collections#list-chunks-operation'
+      ],
       run: async (ctx, state) => {
         const {
           alice,
@@ -494,7 +498,7 @@ export const chunksApi: Suite<State> = {
           createParent
         } = state
         if (!chunkedSupported) {
-          ctx.skip('backend does not advertise chunked-streams')
+          ctx.skip('the server lists no Encrypted Collections entry')
         }
         const resourceId = 'multi-chunk'
         await createParent(resourceId)
@@ -569,8 +573,8 @@ export const chunksApi: Suite<State> = {
       id: 'chunks.parent-delete-cascade',
       name: '[root] deleting the parent Resource cascades: its chunks and listing become 404',
       specRefs: [
-        'https://wallet.storage/spec#chunked-resources',
-        'https://wallet.storage/spec#delete-resource-operation'
+        'https://w3id.org/pws/encrypted-collections#chunked-resources',
+        'https://w3id.org/pws#delete-resource-operation'
       ],
       run: async (ctx, state) => {
         const {
@@ -582,7 +586,7 @@ export const chunksApi: Suite<State> = {
           createParent
         } = state
         if (!chunkedSupported) {
-          ctx.skip('backend does not advertise chunked-streams')
+          ctx.skip('the server lists no Encrypted Collections entry')
         }
         const resourceId = 'cascade'
         await createParent(resourceId)
@@ -631,13 +635,13 @@ export const chunksApi: Suite<State> = {
       id: 'chunks.invisible-to-changes-feed',
       name: '[root] chunk writes and deletes do not surface on the collection changes feed',
       specRefs: [
-        'https://wallet.storage/spec#store-chunk-operation',
-        'https://wallet.storage/spec#list-chunks-operation'
+        'https://w3id.org/pws/encrypted-collections#store-chunk-operation',
+        'https://w3id.org/pws/encrypted-collections#list-chunks-operation'
       ],
       run: async (ctx, state) => {
         const { alice, chunkUrl, resourceUrl, chunkedSupported } = state
         if (!chunkedSupported) {
-          ctx.skip('backend does not advertise chunked-streams')
+          ctx.skip('the server lists no Encrypted Collections entry')
         }
         const resourceId = 'feed-manifest'
         const queryUrl = new URL(
@@ -721,13 +725,13 @@ export const chunksApi: Suite<State> = {
       id: 'chunks.write-cap-bound-to-chunk-url',
       name: '[delegated] a capability for one chunk cannot write a sibling chunk',
       specRefs: [
-        'https://wallet.storage/spec#chunk-authorization',
-        'https://wallet.storage/spec#store-chunk-operation'
+        'https://w3id.org/pws/encrypted-collections#chunk-authorization',
+        'https://w3id.org/pws/encrypted-collections#store-chunk-operation'
       ],
       run: async (ctx, state) => {
         const { alice, bob, chunkUrl, chunkedSupported, createParent } = state
         if (!chunkedSupported) {
-          ctx.skip('backend does not advertise chunked-streams')
+          ctx.skip('the server lists no Encrypted Collections entry')
         }
         const resourceId = 'target-binding'
         await createParent(resourceId)
@@ -785,13 +789,13 @@ export const chunksApi: Suite<State> = {
       id: 'chunks.no-leak-foreign-controller-404',
       name: "[cross-controller] Bob reading or writing Alice's chunk URL is masked as 404",
       specRefs: [
-        'https://wallet.storage/spec#chunk-authorization',
-        'https://wallet.storage/spec#error-handling'
+        'https://w3id.org/pws/encrypted-collections#chunk-authorization',
+        'https://w3id.org/pws#error-handling'
       ],
       run: async (ctx, state) => {
         const { alice, bob, chunkUrl, chunkedSupported, createParent } = state
         if (!chunkedSupported) {
-          ctx.skip('backend does not advertise chunked-streams')
+          ctx.skip('the server lists no Encrypted Collections entry')
         }
         const resourceId = 'foreign'
         await createParent(resourceId)

@@ -36,13 +36,13 @@ function assertNotFoundMask(expectedError: any): void {
     expectedError.response.headers.get('content-type'),
     /application\/problem\+json/
   )
-  assert.equal(expectedError.data.type, 'https://wallet.storage/spec#not-found')
+  assert.equal(expectedError.data.type, 'https://w3id.org/pws#not-found')
 }
 
 export const authzOrderingApi: Suite<State> = {
   id: 'authz-ordering-api',
   name: 'Authorization ordering (no-leak negatives)',
-  specRefs: ['https://wallet.storage/spec#error-handling'],
+  specRefs: ['https://w3id.org/pws#error-handling'],
 
   setup: async ctx => {
     const alice: any = { ...ctx.actors.alice }
@@ -100,8 +100,8 @@ export const authzOrderingApi: Suite<State> = {
       id: 'ordering.collection-post-conflict-404',
       name: "[root] Bob's POST of an existing Collection id yields 404, not id-conflict (409)",
       specRefs: [
-        'https://wallet.storage/spec#id-conflict',
-        'https://wallet.storage/spec#not-found'
+        'https://w3id.org/pws#id-conflict',
+        'https://w3id.org/pws#not-found'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -126,8 +126,8 @@ export const authzOrderingApi: Suite<State> = {
       id: 'ordering.encrypted-write-404',
       name: "[root] Bob's plaintext write to an encrypted Collection yields 404, not scheme-mismatch (422)",
       specRefs: [
-        'https://wallet.storage/spec#encryption-scheme-mismatch',
-        'https://wallet.storage/spec#not-found'
+        'https://w3id.org/pws#encryption-scheme-mismatch',
+        'https://w3id.org/pws#not-found'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -155,8 +155,8 @@ export const authzOrderingApi: Suite<State> = {
       id: 'ordering.list-bad-cursor-404',
       name: "[root] Bob's List Collection with a malformed cursor yields 404, not invalid-cursor (400)",
       specRefs: [
-        'https://wallet.storage/spec#invalid-cursor',
-        'https://wallet.storage/spec#not-found'
+        'https://w3id.org/pws#invalid-cursor',
+        'https://w3id.org/pws#not-found'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -182,7 +182,7 @@ export const authzOrderingApi: Suite<State> = {
     {
       id: 'ordering.query-bad-body-404',
       name: "[root] Bob's query POST with an invalid body yields 404, not 400/501",
-      specRefs: ['https://wallet.storage/spec#not-found'],
+      specRefs: ['https://w3id.org/pws#not-found'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice, bob } = state
@@ -209,8 +209,8 @@ export const authzOrderingApi: Suite<State> = {
       id: 'ordering.space-quotas-read-404',
       name: "[root] Bob's read of Alice's Space quota report yields 404, never 403",
       specRefs: [
-        'https://wallet.storage/spec#quotas',
-        'https://wallet.storage/spec#not-found'
+        'https://w3id.org/pws#quotas',
+        'https://w3id.org/pws#not-found'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -234,8 +234,8 @@ export const authzOrderingApi: Suite<State> = {
       id: 'ordering.collection-quota-read-404',
       name: "[root] Bob's read of Alice's Collection quota yields 404, never 403 or 501",
       specRefs: [
-        'https://wallet.storage/spec#quotas',
-        'https://wallet.storage/spec#not-found'
+        'https://w3id.org/pws#quotas',
+        'https://w3id.org/pws#not-found'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -260,7 +260,7 @@ export const authzOrderingApi: Suite<State> = {
     {
       id: 'ordering.resource-delete-404',
       name: "[root] Bob's DELETE of Alice's Resource yields 404 and does not delete it",
-      specRefs: ['https://wallet.storage/spec#not-found'],
+      specRefs: ['https://w3id.org/pws#not-found'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice, bob, resourceId } = state

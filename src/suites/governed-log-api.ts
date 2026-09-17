@@ -16,11 +16,11 @@
  * encryption descriptor's transition checks between the prior head and the
  * new one.
  *
- * The feature is OPTIONAL, gated on a backend advertising the
- * `governed-history-logs` token in its Backend description. Rather than mark
- * the whole suite optional, setup() probes the Space's backend list for the
- * token and each test skips when it is absent; once advertised, the behaviors
- * below are MUST-level and run at the required tier.
+ * The sub-resource is OPTIONAL, advertised by the `governed-history-logs` token
+ * of the Encrypted Collections entry in the service description. Rather than
+ * mark the whole suite optional, setup() reads that document and each test
+ * skips when the token is absent; once advertised, the behaviors below are
+ * MUST-level and run at the required tier.
  *
  * The log is written and read through raw `fetch` over the low-level signing
  * primitive: the body is `text/jsonl` (not JSON, which the high-level clients
@@ -29,6 +29,10 @@
 import { signCapabilityInvocation } from '@interop/http-signature-zcap-invoke'
 import type { ISigner } from '@interop/data-integrity-core'
 import assert from '../harness/assert.js'
+import {
+  ENCRYPTED_COLLECTIONS_IDENTIFIER,
+  serviceFeatures
+} from '../harness/serviceDescription.js'
 import type { Suite } from '../harness/types.js'
 
 interface State {
@@ -172,14 +176,14 @@ async function assertProblem({
     /application\/problem\+json/
   )
   const problem = await response.json()
-  assert.equal(problem.type, `https://wallet.storage/spec#${type}`)
+  assert.equal(problem.type, `https://w3id.org/pws#${type}`)
   return problem
 }
 
 export const governedLogApi: Suite<State> = {
   id: 'governed-log-api',
   name: 'Governing history log API',
-  specRefs: ['https://wallet.storage/spec#collection-metadata-data-model'],
+  specRefs: ['https://w3id.org/pws#collection-metadata-data-model'],
 
   setup: async ctx => {
     const alice: any = { ...ctx.actors.alice }
@@ -295,24 +299,11 @@ export const governedLogApi: Suite<State> = {
       return { collectionId, body, etag }
     }
 
-    // Discover whether any of the Space's backends advertises
-    // `governed-history-logs` (spec "Backends"). Absent the token the
-    // sub-resource is OPTIONAL and each test skips.
-    const backendsResponse = await alice.rootClient.request({
-      url: new URL(
-        `/space/${alice.space1.id}/backends`,
-        ctx.serverUrl
-      ).toString(),
-      method: 'GET'
+    const features = await serviceFeatures({
+      serverUrl: ctx.serverUrl,
+      specIdentifier: ENCRYPTED_COLLECTIONS_IDENTIFIER
     })
-    const backends: Array<{ features?: string[] }> = Array.isArray(
-      backendsResponse.data
-    )
-      ? backendsResponse.data
-      : (backendsResponse.data?.backends ?? [])
-    const governedSupported = backends.some(backend =>
-      backend.features?.includes('governed-history-logs')
-    )
+    const governedSupported = features.includes('governed-history-logs')
 
     return {
       alice,
@@ -346,7 +337,7 @@ export const governedLogApi: Suite<State> = {
       run: async (ctx, state) => {
         const { alice, collectionUrl, logUrl, governedCollection } = state
         if (!state.governedSupported) {
-          ctx.skip('backend does not advertise governed-history-logs')
+          ctx.skip('the server does not advertise governed-history-logs')
         }
         const { collectionId } = await governedCollection()
         const expected = {
@@ -370,7 +361,7 @@ export const governedLogApi: Suite<State> = {
       run: async (ctx, state) => {
         const { getLog, governedCollection } = state
         if (!state.governedSupported) {
-          ctx.skip('backend does not advertise governed-history-logs')
+          ctx.skip('the server does not advertise governed-history-logs')
         }
         const { collectionId, body, etag } = await governedCollection()
         const read = await getLog({ collectionId })
@@ -384,11 +375,11 @@ export const governedLogApi: Suite<State> = {
       id: 'governed-log.conditional-read-304',
       name: '[root] a log GET with a matching If-None-Match is 304 with the ETag and no body',
       optional: true,
-      specRefs: ['https://wallet.storage/spec#caching'],
+      specRefs: ['https://w3id.org/pws#caching'],
       run: async (ctx, state) => {
         const { getLog, governedCollection } = state
         if (!state.governedSupported) {
-          ctx.skip('backend does not advertise governed-history-logs')
+          ctx.skip('the server does not advertise governed-history-logs')
         }
         const { collectionId, etag } = await governedCollection()
         const conditional = await getLog({
@@ -406,7 +397,7 @@ export const governedLogApi: Suite<State> = {
       run: async (ctx, state) => {
         const { freshCollection, getLog, putLog } = state
         if (!state.governedSupported) {
-          ctx.skip('backend does not advertise governed-history-logs')
+          ctx.skip('the server does not advertise governed-history-logs')
         }
         const collectionId = await freshCollection()
         await assertProblem({
@@ -432,7 +423,7 @@ export const governedLogApi: Suite<State> = {
       run: async (ctx, state) => {
         const { alice, collectionUrl, putLog, governedCollection } = state
         if (!state.governedSupported) {
-          ctx.skip('backend does not advertise governed-history-logs')
+          ctx.skip('the server does not advertise governed-history-logs')
         }
         const { collectionId, body, etag } = await governedCollection()
         const before = await alice.rootClient.request({
@@ -470,11 +461,11 @@ export const governedLogApi: Suite<State> = {
     {
       id: 'governed-log.stale-if-match-412',
       name: '[root] a stale If-Match append is 412 precondition-failed and the log is unchanged',
-      specRefs: ['https://wallet.storage/spec#precondition-failed'],
+      specRefs: ['https://w3id.org/pws#precondition-failed'],
       run: async (ctx, state) => {
         const { getLog, putLog, governedCollection } = state
         if (!state.governedSupported) {
-          ctx.skip('backend does not advertise governed-history-logs')
+          ctx.skip('the server does not advertise governed-history-logs')
         }
         const { collectionId, body, etag } = await governedCollection()
         const extended =
@@ -506,13 +497,13 @@ export const governedLogApi: Suite<State> = {
       id: 'governed-log.append-fast-forward-only',
       name: '[root] an append must fast-forward the stored log: a rewritten prefix is 412 under a current If-Match, adding no line or several is 400, and the log is unchanged',
       specRefs: [
-        'https://wallet.storage/spec#precondition-failed',
-        'https://wallet.storage/spec#invalid-request-body'
+        'https://w3id.org/pws#precondition-failed',
+        'https://w3id.org/pws#invalid-request-body'
       ],
       run: async (ctx, state) => {
         const { getLog, putLog, governedCollection } = state
         if (!state.governedSupported) {
-          ctx.skip('backend does not advertise governed-history-logs')
+          ctx.skip('the server does not advertise governed-history-logs')
         }
         const { collectionId, body, etag } = await governedCollection()
         const secondLine = entryLine({ ordinal: 2, state: twoEpochs }) + '\n'
@@ -560,11 +551,11 @@ export const governedLogApi: Suite<State> = {
     {
       id: 'governed-log.guarded-create-existing-412',
       name: '[root] a guarded create on an existing log is 412 precondition-failed',
-      specRefs: ['https://wallet.storage/spec#precondition-failed'],
+      specRefs: ['https://w3id.org/pws#precondition-failed'],
       run: async (ctx, state) => {
         const { putLog, governedCollection } = state
         if (!state.governedSupported) {
-          ctx.skip('backend does not advertise governed-history-logs')
+          ctx.skip('the server does not advertise governed-history-logs')
         }
         const { collectionId, body } = await governedCollection()
         await assertProblem({
@@ -581,11 +572,11 @@ export const governedLogApi: Suite<State> = {
     {
       id: 'governed-log.direct-encryption-write-refused',
       name: '[root] a direct encryption write on a governed Collection is 409 encryption-history-log-governed',
-      specRefs: ['https://wallet.storage/spec#encryption-history-log-governed'],
+      specRefs: ['https://w3id.org/pws#encryption-history-log-governed'],
       run: async (ctx, state) => {
         const { alice, collectionUrl, governedCollection } = state
         if (!state.governedSupported) {
-          ctx.skip('backend does not advertise governed-history-logs')
+          ctx.skip('the server does not advertise governed-history-logs')
         }
         const { collectionId } = await governedCollection()
         let expectedError: any
@@ -603,7 +594,7 @@ export const governedLogApi: Suite<State> = {
         assert.equal(expectedError.response.status, 409)
         assert.equal(
           expectedError.data.type,
-          'https://wallet.storage/spec#encryption-history-log-governed'
+          'https://w3id.org/pws#encryption-history-log-governed'
         )
 
         // The descriptor is untouched, and a Metadata object update that
@@ -631,11 +622,11 @@ export const governedLogApi: Suite<State> = {
     {
       id: 'governed-log.epoch-violation-refused',
       name: '[root] an append that drops an epoch or moves currentEpoch back is refused and the log is unchanged',
-      specRefs: ['https://wallet.storage/spec#collection-metadata-data-model'],
+      specRefs: ['https://w3id.org/pws#collection-metadata-data-model'],
       run: async (ctx, state) => {
         const { freshCollection, getLog, putLog } = state
         if (!state.governedSupported) {
-          ctx.skip('backend does not advertise governed-history-logs')
+          ctx.skip('the server does not advertise governed-history-logs')
         }
         const collectionId = await freshCollection()
         const body = genesisLine(twoEpochs) + '\n'
@@ -669,11 +660,11 @@ export const governedLogApi: Suite<State> = {
     {
       id: 'governed-log.line-contract-break-400',
       name: '[root] a body that breaks the line contract is 400 invalid-request-body and governs nothing',
-      specRefs: ['https://wallet.storage/spec#invalid-request-body'],
+      specRefs: ['https://w3id.org/pws#invalid-request-body'],
       run: async (ctx, state) => {
         const { freshCollection, getLog, putLog } = state
         if (!state.governedSupported) {
-          ctx.skip('backend does not advertise governed-history-logs')
+          ctx.skip('the server does not advertise governed-history-logs')
         }
         const collectionId = await freshCollection()
         const bodies = [
@@ -698,7 +689,7 @@ export const governedLogApi: Suite<State> = {
           const problem = await response.json()
           assert.equal(
             problem.type,
-            'https://wallet.storage/spec#invalid-request-body'
+            'https://w3id.org/pws#invalid-request-body'
           )
         }
         // None of them declared the Collection governed.
@@ -708,11 +699,11 @@ export const governedLogApi: Suite<State> = {
     {
       id: 'governed-log.already-described-refused',
       name: '[root] governing a Collection that already carries a client-written descriptor is 409 encryption-immutable',
-      specRefs: ['https://wallet.storage/spec#encryption-immutable'],
+      specRefs: ['https://w3id.org/pws#encryption-immutable'],
       run: async (ctx, state) => {
         const { freshCollection, getLog, putLog } = state
         if (!state.governedSupported) {
-          ctx.skip('backend does not advertise governed-history-logs')
+          ctx.skip('the server does not advertise governed-history-logs')
         }
         const collectionId = await freshCollection({
           encryption: { scheme: 'edv' }
@@ -733,13 +724,13 @@ export const governedLogApi: Suite<State> = {
       id: 'governed-log.not-a-resource',
       name: '[root] the log is absent from the listing, exempt from the envelope rule, and untouched by a PUT /meta',
       specRefs: [
-        'https://wallet.storage/spec#list-collection-operation',
-        'https://wallet.storage/spec#update-or-create-by-id-collection-operation'
+        'https://w3id.org/pws#list-collection-operation',
+        'https://w3id.org/pws#update-or-create-by-id-collection-operation'
       ],
       run: async (ctx, state) => {
         const { alice, collectionUrl, getLog, governedCollection } = state
         if (!state.governedSupported) {
-          ctx.skip('backend does not advertise governed-history-logs')
+          ctx.skip('the server does not advertise governed-history-logs')
         }
         const { collectionId, etag } = await governedCollection()
         const itemsUrl = `${collectionUrl(collectionId)}/`
@@ -795,7 +786,7 @@ export const governedLogApi: Suite<State> = {
         const { alice, collectionUrl, getLog, governedCollection } = state
         const { aliceDelegatedApp } = ctx.actors
         if (!state.governedSupported) {
-          ctx.skip('backend does not advertise governed-history-logs')
+          ctx.skip('the server does not advertise governed-history-logs')
         }
         const { collectionId, body } = await governedCollection()
         // A Space-rooted grant: the chain descends from the Space's root
@@ -818,11 +809,11 @@ export const governedLogApi: Suite<State> = {
     {
       id: 'governed-log.other-controller-404-mask',
       name: "[root] another controller's log read is the 404 mask, not a 403",
-      specRefs: ['https://wallet.storage/spec#not-found'],
+      specRefs: ['https://w3id.org/pws#not-found'],
       run: async (ctx, state) => {
         const { bob, getLog, governedCollection } = state
         if (!state.governedSupported) {
-          ctx.skip('backend does not advertise governed-history-logs')
+          ctx.skip('the server does not advertise governed-history-logs')
         }
         const { collectionId } = await governedCollection()
         await assertProblem({
@@ -838,11 +829,11 @@ export const governedLogApi: Suite<State> = {
     {
       id: 'governed-log.delete-collection-removes-log',
       name: '[root] deleting the Collection takes the log with it: a re-created Collection is ungoverned',
-      specRefs: ['https://wallet.storage/spec#delete-collection-operation'],
+      specRefs: ['https://w3id.org/pws#delete-collection-operation'],
       run: async (ctx, state) => {
         const { alice, collectionUrl, putLog, governedCollection } = state
         if (!state.governedSupported) {
-          ctx.skip('backend does not advertise governed-history-logs')
+          ctx.skip('the server does not advertise governed-history-logs')
         }
         const { collectionId, body } = await governedCollection()
         await alice.rootClient.request({

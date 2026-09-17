@@ -98,7 +98,7 @@ export const encryptionDescriptorApi: Suite<State> = {
     {
       id: 'encryption.persist-echo-descriptor',
       name: '[root] persists and echoes the descriptor on create',
-      specRefs: ['https://wallet.storage/spec#collection-metadata-data-model'],
+      specRefs: ['https://w3id.org/pws#collection-metadata-data-model'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice, createCollection } = state
@@ -123,7 +123,7 @@ export const encryptionDescriptorApi: Suite<State> = {
     {
       id: 'encryption.delegated-discovers-descriptor',
       name: 'a delegated consumer discovers the descriptor by reading the Metadata object',
-      specRefs: ['https://wallet.storage/spec#collection-metadata-data-model'],
+      specRefs: ['https://w3id.org/pws#collection-metadata-data-model'],
       run: async (ctx, state) => {
         const { alice, bob } = state
         // Alice grants Bob read on the vault; Bob -- who did not create it --
@@ -144,7 +144,7 @@ export const encryptionDescriptorApi: Suite<State> = {
     {
       id: 'encryption.malformed-descriptor-400',
       name: '[root] rejects a malformed descriptor (400 invalid-request-body)',
-      specRefs: ['https://wallet.storage/spec#invalid-request-body'],
+      specRefs: ['https://w3id.org/pws#invalid-request-body'],
       run: async (ctx, state) => {
         const { createCollection } = state
         let expectedError: any
@@ -160,14 +160,14 @@ export const encryptionDescriptorApi: Suite<State> = {
         assert.equal(expectedError.response.status, 400)
         assert.equal(
           expectedError.data.type,
-          'https://wallet.storage/spec#invalid-request-body'
+          'https://w3id.org/pws#invalid-request-body'
         )
       }
     },
     {
       id: 'encryption.unrecognized-scheme-400',
       name: '[root] rejects an unrecognized scheme on first declaration (400 unsupported-encryption-scheme)',
-      specRefs: ['https://wallet.storage/spec#unsupported-encryption-scheme'],
+      specRefs: ['https://w3id.org/pws#unsupported-encryption-scheme'],
       run: async (ctx, state) => {
         const { createCollection } = state
         // The fail-closed scheme gate (spec "Encryption Scheme Registry"): a
@@ -192,7 +192,7 @@ export const encryptionDescriptorApi: Suite<State> = {
         assert.equal(expectedError.response.status, 400)
         assert.equal(
           expectedError.data.type,
-          'https://wallet.storage/spec#unsupported-encryption-scheme'
+          'https://w3id.org/pws#unsupported-encryption-scheme'
         )
       }
     },
@@ -200,8 +200,8 @@ export const encryptionDescriptorApi: Suite<State> = {
       id: 'encryption.change-scheme-immutable',
       name: '[root] rejects changing the scheme of an existing descriptor and preserves it',
       specRefs: [
-        'https://wallet.storage/spec#encryption-immutable',
-        'https://wallet.storage/spec#collection-metadata-data-model'
+        'https://w3id.org/pws#encryption-immutable',
+        'https://w3id.org/pws#collection-metadata-data-model'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -235,8 +235,8 @@ export const encryptionDescriptorApi: Suite<State> = {
         assert.equal(
           expectedError.data.type,
           status === 409
-            ? 'https://wallet.storage/spec#encryption-immutable'
-            : 'https://wallet.storage/spec#unsupported-encryption-scheme'
+            ? 'https://w3id.org/pws#encryption-immutable'
+            : 'https://w3id.org/pws#unsupported-encryption-scheme'
         )
 
         // The stored descriptor must be unchanged.
@@ -254,8 +254,8 @@ export const encryptionDescriptorApi: Suite<State> = {
       id: 'encryption.clear-descriptor-immutable',
       name: '[root] an update cannot clear an existing descriptor',
       specRefs: [
-        'https://wallet.storage/spec#encryption-immutable',
-        'https://wallet.storage/spec#collection-metadata-data-model'
+        'https://w3id.org/pws#encryption-immutable',
+        'https://w3id.org/pws#collection-metadata-data-model'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -287,7 +287,7 @@ export const encryptionDescriptorApi: Suite<State> = {
         assert.equal(expectedError.response.status, 409)
         assert.equal(
           expectedError.data.type,
-          'https://wallet.storage/spec#encryption-immutable'
+          'https://w3id.org/pws#encryption-immutable'
         )
 
         // The stored descriptor must survive.
@@ -304,7 +304,7 @@ export const encryptionDescriptorApi: Suite<State> = {
     {
       id: 'encryption.non-envelope-write-422',
       name: '[root] rejects a non-envelope write into an encrypted Collection (422 scheme-mismatch)',
-      specRefs: ['https://wallet.storage/spec#encryption-scheme-mismatch'],
+      specRefs: ['https://w3id.org/pws#encryption-scheme-mismatch'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice } = state
@@ -330,7 +330,7 @@ export const encryptionDescriptorApi: Suite<State> = {
         assert.equal(expectedError.response.status, 422)
         assert.equal(
           expectedError.data.type,
-          'https://wallet.storage/spec#encryption-scheme-mismatch'
+          'https://w3id.org/pws#encryption-scheme-mismatch'
         )
       }
     },
@@ -339,7 +339,7 @@ export const encryptionDescriptorApi: Suite<State> = {
       name:
         '[root] rejects a valid envelope written under the wrong Content-Type ' +
         '(422 scheme-mismatch)',
-      specRefs: ['https://wallet.storage/spec#encryption-scheme-mismatch'],
+      specRefs: ['https://w3id.org/pws#encryption-scheme-mismatch'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice } = state
@@ -371,14 +371,14 @@ export const encryptionDescriptorApi: Suite<State> = {
         assert.equal(expectedError.response.status, 422)
         assert.equal(
           expectedError.data.type,
-          'https://wallet.storage/spec#encryption-scheme-mismatch'
+          'https://w3id.org/pws#encryption-scheme-mismatch'
         )
       }
     },
     {
       id: 'encryption.accepts-edv-document',
       name: '[root] accepts a conforming EDV Document into an encrypted Collection',
-      specRefs: ['https://wallet.storage/spec#encryption-scheme-registry'],
+      specRefs: ['https://w3id.org/pws#encryption-scheme-registry'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice } = state
@@ -400,7 +400,7 @@ export const encryptionDescriptorApi: Suite<State> = {
     {
       id: 'encryption.plaintext-meta-422',
       name: '[root] rejects a plaintext `custom` on PUT /meta of an encrypted Collection (422)',
-      specRefs: ['https://wallet.storage/spec#encryption-scheme-mismatch'],
+      specRefs: ['https://w3id.org/pws#encryption-scheme-mismatch'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice } = state
@@ -429,7 +429,7 @@ export const encryptionDescriptorApi: Suite<State> = {
         assert.equal(expectedError.response.status, 422)
         assert.equal(
           expectedError.data.type,
-          'https://wallet.storage/spec#encryption-scheme-mismatch'
+          'https://w3id.org/pws#encryption-scheme-mismatch'
         )
       }
     },
@@ -438,8 +438,8 @@ export const encryptionDescriptorApi: Suite<State> = {
       name: '[root] accepts an envelope `custom` on PUT /meta and returns its metaVersion ETag',
       optional: true,
       specRefs: [
-        'https://wallet.storage/spec#update-resource-metadata-operation',
-        'https://wallet.storage/spec#resource-metadata-data-model'
+        'https://w3id.org/pws#update-resource-metadata-operation',
+        'https://w3id.org/pws#resource-metadata-data-model'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -472,7 +472,7 @@ export const encryptionDescriptorApi: Suite<State> = {
       id: 'encryption.replicates-metadata-changes',
       name: '[root] replicates the encrypted metadata edit in the changes feed',
       optional: true,
-      specRefs: ['https://wallet.storage/spec#query-profile-changes'],
+      specRefs: ['https://w3id.org/pws#query-profile-changes'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice } = state
@@ -501,8 +501,8 @@ export const encryptionDescriptorApi: Suite<State> = {
       id: 'encryption.version-persist-echo',
       name: '[root] persists and echoes a descriptor with an integer version',
       specRefs: [
-        'https://wallet.storage/spec#collection-metadata-data-model',
-        'https://wallet.storage/spec#encryption-scheme-registry'
+        'https://w3id.org/pws#collection-metadata-data-model',
+        'https://w3id.org/pws#encryption-scheme-registry'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -530,7 +530,7 @@ export const encryptionDescriptorApi: Suite<State> = {
     {
       id: 'encryption.version-invalid-400',
       name: '[root] rejects a non-integer version (400 invalid-request-body)',
-      specRefs: ['https://wallet.storage/spec#invalid-request-body'],
+      specRefs: ['https://w3id.org/pws#invalid-request-body'],
       run: async (ctx, state) => {
         const { createCollection } = state
         // The data model: `version` is a positive integer, not a semantic
@@ -548,14 +548,14 @@ export const encryptionDescriptorApi: Suite<State> = {
         assert.equal(expectedError.response.status, 400)
         assert.equal(
           expectedError.data.type,
-          'https://wallet.storage/spec#invalid-request-body'
+          'https://w3id.org/pws#invalid-request-body'
         )
       }
     },
     {
       id: 'encryption.version-explicit-1-noop',
       name: '[root] accepts an explicit version 1 on a descriptor that had omitted it',
-      specRefs: ['https://wallet.storage/spec#collection-metadata-data-model'],
+      specRefs: ['https://w3id.org/pws#collection-metadata-data-model'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice, createCollection } = state
@@ -600,8 +600,8 @@ export const encryptionDescriptorApi: Suite<State> = {
       id: 'encryption.version-remove-immutable',
       name: '[root] an update cannot remove the version once set',
       specRefs: [
-        'https://wallet.storage/spec#encryption-immutable',
-        'https://wallet.storage/spec#collection-metadata-data-model'
+        'https://w3id.org/pws#encryption-immutable',
+        'https://w3id.org/pws#collection-metadata-data-model'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -630,7 +630,7 @@ export const encryptionDescriptorApi: Suite<State> = {
           assert.equal(expectedError.response.status, 409)
           assert.equal(
             expectedError.data.type,
-            'https://wallet.storage/spec#encryption-immutable'
+            'https://w3id.org/pws#encryption-immutable'
           )
         }
 
@@ -654,8 +654,8 @@ export const encryptionDescriptorApi: Suite<State> = {
       id: 'encryption.version-raise-not-immutable',
       name: '[root] raising the version is not an immutability conflict',
       specRefs: [
-        'https://wallet.storage/spec#collection-metadata-data-model',
-        'https://wallet.storage/spec#encryption-scheme-registry'
+        'https://w3id.org/pws#collection-metadata-data-model',
+        'https://w3id.org/pws#encryption-scheme-registry'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -688,7 +688,7 @@ export const encryptionDescriptorApi: Suite<State> = {
           assert.equal(expectedError.response.status, 400)
           assert.equal(
             expectedError.data.type,
-            'https://wallet.storage/spec#unsupported-encryption-scheme'
+            'https://w3id.org/pws#unsupported-encryption-scheme'
           )
           // The rejected raise must leave the stored descriptor unchanged.
           const read = await alice.rootClient.request({
@@ -715,7 +715,7 @@ export const encryptionDescriptorApi: Suite<State> = {
       id: 'encryption.version-unrecognized',
       name: '[root] an unrecognized version is rejected or stored opaquely, never mangled',
       optional: true,
-      specRefs: ['https://wallet.storage/spec#unsupported-encryption-scheme'],
+      specRefs: ['https://w3id.org/pws#unsupported-encryption-scheme'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice, createCollection } = state
@@ -738,7 +738,7 @@ export const encryptionDescriptorApi: Suite<State> = {
           assert.equal(expectedError.response.status, 400)
           assert.equal(
             expectedError.data.type,
-            'https://wallet.storage/spec#unsupported-encryption-scheme'
+            'https://w3id.org/pws#unsupported-encryption-scheme'
           )
         } else {
           assert.equal(response.status, 201)
@@ -757,8 +757,8 @@ export const encryptionDescriptorApi: Suite<State> = {
       id: 'encryption.hmac-persist-echo',
       name: '[root] persists and echoes the blinding-key hmac member verbatim',
       specRefs: [
-        'https://wallet.storage/spec#blinding-key-member',
-        'https://wallet.storage/spec#collection-metadata-data-model'
+        'https://w3id.org/pws#blinding-key-member',
+        'https://w3id.org/pws#collection-metadata-data-model'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -782,8 +782,8 @@ export const encryptionDescriptorApi: Suite<State> = {
       id: 'encryption.hmac-malformed-400',
       name: '[root] rejects a malformed hmac member (400 invalid-request-body)',
       specRefs: [
-        'https://wallet.storage/spec#key-epoch-server-validation',
-        'https://wallet.storage/spec#invalid-request-body'
+        'https://w3id.org/pws#key-epoch-server-validation',
+        'https://w3id.org/pws#invalid-request-body'
       ],
       run: async (ctx, state) => {
         const { createCollection } = state
@@ -819,7 +819,7 @@ export const encryptionDescriptorApi: Suite<State> = {
           assert.equal(expectedError.response.status, 400, label)
           assert.equal(
             expectedError.data.type,
-            'https://wallet.storage/spec#invalid-request-body',
+            'https://w3id.org/pws#invalid-request-body',
             label
           )
         }
@@ -829,8 +829,8 @@ export const encryptionDescriptorApi: Suite<State> = {
       id: 'encryption.hmac-id-change-immutable',
       name: '[root] an update cannot change the hmac id (409 encryption-immutable)',
       specRefs: [
-        'https://wallet.storage/spec#key-epoch-server-validation',
-        'https://wallet.storage/spec#encryption-immutable'
+        'https://w3id.org/pws#key-epoch-server-validation',
+        'https://w3id.org/pws#encryption-immutable'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -860,7 +860,7 @@ export const encryptionDescriptorApi: Suite<State> = {
         assert.equal(expectedError.response.status, 409)
         assert.equal(
           expectedError.data.type,
-          'https://wallet.storage/spec#encryption-immutable'
+          'https://w3id.org/pws#encryption-immutable'
         )
         const read = await alice.rootClient.request({
           url: new URL(
@@ -876,8 +876,8 @@ export const encryptionDescriptorApi: Suite<State> = {
       id: 'encryption.hmac-remove-immutable',
       name: '[root] an update cannot remove the hmac member (409 encryption-immutable)',
       specRefs: [
-        'https://wallet.storage/spec#key-epoch-server-validation',
-        'https://wallet.storage/spec#encryption-immutable'
+        'https://w3id.org/pws#key-epoch-server-validation',
+        'https://w3id.org/pws#encryption-immutable'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -905,7 +905,7 @@ export const encryptionDescriptorApi: Suite<State> = {
         assert.equal(expectedError.response.status, 409)
         assert.equal(
           expectedError.data.type,
-          'https://wallet.storage/spec#encryption-immutable'
+          'https://w3id.org/pws#encryption-immutable'
         )
         const read = await alice.rootClient.request({
           url: new URL(
@@ -921,8 +921,8 @@ export const encryptionDescriptorApi: Suite<State> = {
       id: 'encryption.hmac-recipients-change-accepted',
       name: '[root] an update may change the hmac recipients',
       specRefs: [
-        'https://wallet.storage/spec#key-epoch-server-validation',
-        'https://wallet.storage/spec#blinding-key-member'
+        'https://w3id.org/pws#key-epoch-server-validation',
+        'https://w3id.org/pws#blinding-key-member'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -966,8 +966,8 @@ export const encryptionDescriptorApi: Suite<State> = {
       id: 'encryption.hmac-late-introduction-accepted',
       name: '[root] an update may introduce hmac on a descriptor that lacks it',
       specRefs: [
-        'https://wallet.storage/spec#key-epoch-server-validation',
-        'https://wallet.storage/spec#blinding-key-member'
+        'https://w3id.org/pws#key-epoch-server-validation',
+        'https://w3id.org/pws#blinding-key-member'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx

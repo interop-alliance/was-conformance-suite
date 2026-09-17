@@ -45,8 +45,8 @@ interface State {
   spaceIds: string[]
 }
 
-const NOT_FOUND = 'https://wallet.storage/spec#not-found'
-const CONTAINER_RULE = 'https://wallet.storage/spec#the-container-rule'
+const NOT_FOUND = 'https://w3id.org/pws#not-found'
+const CONTAINER_RULE = 'https://w3id.org/pws#the-container-rule'
 
 /**
  * Provisions a fresh Space controlled by Alice and records it for teardown.
@@ -626,7 +626,7 @@ export const containerRuleApi: Suite<State> = {
       name: '[delegated] POST /space/:s/ still creates a Collection under an exact-target Space grant',
       specRefs: [
         CONTAINER_RULE,
-        'https://wallet.storage/spec#create-collection-operation'
+        'https://w3id.org/pws#create-collection-operation'
       ],
       run: async (ctx, state) => {
         const spaceId = await provisionSpace({

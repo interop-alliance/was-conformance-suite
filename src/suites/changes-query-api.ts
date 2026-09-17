@@ -5,13 +5,24 @@
  * WAS conformance tests -- Collection `changes` query profile (the replication
  * change feed served at `POST /space/:s/:c/query`; spec "Collection-level
  * reserved endpoints").
+ *
+ * The profile is OPTIONAL and advertised server-wide: a server that serves it
+ * carries the `changes-query` token in the `features` array of its service
+ * description's WAS version entry. It varies by whether the server keeps an
+ * ordered change log at all rather than by backend, which is why the token sits
+ * there and not on a Backend description. `setup()` reads the document and the
+ * two tests exercising the profile skip when the token is absent; the two that
+ * exercise the query endpoint's profile dispatch (an unknown profile, an
+ * omitted one) hold for any server serving the endpoint and run unconditionally.
  */
 import assert from '../harness/assert.js'
+import { serviceFeatures } from '../harness/serviceDescription.js'
 import type { Suite } from '../harness/types.js'
 
 interface State {
   alice: any
   collectionId: string
+  changesSupported: boolean
   queryUrl: () => string
 }
 
@@ -66,7 +77,10 @@ export const changesQueryApi: Suite<State> = {
       method: 'DELETE'
     })
 
-    return { alice, collectionId, queryUrl }
+    const features = await serviceFeatures({ serverUrl: ctx.serverUrl })
+    const changesSupported = features.includes('changes-query')
+
+    return { alice, collectionId, changesSupported, queryUrl }
   },
 
   teardown: async (ctx, state) => {
@@ -85,9 +99,12 @@ export const changesQueryApi: Suite<State> = {
     {
       id: 'changes.live-docs-tombstone-checkpoint',
       name: '[root] returns live documents and a tombstone, with a checkpoint',
-      specRefs: ['https://wallet.storage/spec#query-profile-changes'],
+      specRefs: ['https://w3id.org/pws#query-profile-changes'],
       run: async (ctx, state) => {
-        const { alice, queryUrl } = state
+        const { alice, queryUrl, changesSupported } = state
+        if (!changesSupported) {
+          ctx.skip('the service description does not advertise changes-query')
+        }
         const response = await alice.rootClient.request({
           url: queryUrl(),
           method: 'POST',
@@ -120,7 +137,7 @@ export const changesQueryApi: Suite<State> = {
     {
       id: 'changes.unknown-profile-501',
       name: '[root] rejects an unknown query profile with 501',
-      specRefs: ['https://wallet.storage/spec#query-profile-registry'],
+      specRefs: ['https://w3id.org/pws#query-profile-registry'],
       run: async (ctx, state) => {
         const { alice, queryUrl } = state
         let thrown: any
@@ -146,8 +163,8 @@ export const changesQueryApi: Suite<State> = {
       id: 'changes.missing-profile-400',
       name: '[root] rejects a query body with no `profile` with 400',
       specRefs: [
-        'https://wallet.storage/spec#query-profile-registry',
-        'https://wallet.storage/spec#invalid-request-body'
+        'https://w3id.org/pws#query-profile-registry',
+        'https://w3id.org/pws#invalid-request-body'
       ],
       run: async (ctx, state) => {
         const { alice, queryUrl } = state
@@ -169,7 +186,7 @@ export const changesQueryApi: Suite<State> = {
         assert.equal(expectedError.response.status, 400)
         assert.equal(
           expectedError.data.type,
-          'https://wallet.storage/spec#invalid-request-body'
+          'https://w3id.org/pws#invalid-request-body'
         )
       }
     },
@@ -179,11 +196,14 @@ export const changesQueryApi: Suite<State> = {
         '[root] a `changes` query with a malformed `checkpoint` is rejected ' +
         'with 400',
       specRefs: [
-        'https://wallet.storage/spec#query-profile-changes',
-        'https://wallet.storage/spec#invalid-request-body'
+        'https://w3id.org/pws#query-profile-changes',
+        'https://w3id.org/pws#invalid-request-body'
       ],
       run: async (ctx, state) => {
-        const { alice, queryUrl } = state
+        const { alice, queryUrl, changesSupported } = state
+        if (!changesSupported) {
+          ctx.skip('the service description does not advertise changes-query')
+        }
         // When present, `checkpoint` MUST be an object with a string `id` and a
         // string `updatedAt`; a string checkpoint is malformed and rejected
         // with `invalid-request-body` (400).
@@ -205,7 +225,7 @@ export const changesQueryApi: Suite<State> = {
         assert.equal(expectedError.response.status, 400)
         assert.equal(
           expectedError.data.type,
-          'https://wallet.storage/spec#invalid-request-body'
+          'https://w3id.org/pws#invalid-request-body'
         )
       }
     }

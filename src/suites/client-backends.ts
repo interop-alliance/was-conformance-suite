@@ -77,8 +77,8 @@ export const clientBackends: Suite<State> = {
       id: 'backend.register-sanitized',
       name: 'registers a backend and returns a sanitized (secret-free) descriptor',
       specRefs: [
-        'https://wallet.storage/spec#backends',
-        'https://wallet.storage/spec#backend-data-model'
+        'https://w3id.org/pws#backends',
+        'https://w3id.org/pws#backend-data-model'
       ],
       run: async (ctx, state) => {
         const { newSpace, gdriveRegistration } = state
@@ -112,7 +112,7 @@ export const clientBackends: Suite<State> = {
     {
       id: 'backend.list-with-default',
       name: 'lists the registered backend alongside the server default',
-      specRefs: ['https://wallet.storage/spec#space-backends-available'],
+      specRefs: ['https://w3id.org/pws#space-backends-available'],
       run: async (ctx, state) => {
         const { newSpace, gdriveRegistration } = state
         const space = await newSpace('List Backends')
@@ -135,8 +135,8 @@ export const clientBackends: Suite<State> = {
       id: 'backend.duplicate-id-conflict',
       name: 'rejects a duplicate backend id with ConflictError',
       specRefs: [
-        'https://wallet.storage/spec#backends',
-        'https://wallet.storage/spec#id-conflict'
+        'https://w3id.org/pws#backends',
+        'https://w3id.org/pws#id-conflict'
       ],
       run: async (ctx, state) => {
         const { newSpace, gdriveRegistration } = state
@@ -152,8 +152,8 @@ export const clientBackends: Suite<State> = {
       id: 'backend.reserved-default-id-validation',
       name: 'rejects registering the reserved "default" id with ValidationError',
       specRefs: [
-        'https://wallet.storage/spec#backends',
-        'https://wallet.storage/spec#backend-data-model'
+        'https://w3id.org/pws#backends',
+        'https://w3id.org/pws#backend-data-model'
       ],
       run: async (ctx, state) => {
         const { newSpace, gdriveRegistration } = state
@@ -168,8 +168,8 @@ export const clientBackends: Suite<State> = {
       id: 'backend.update-create-then-replace',
       name: 'updateBackend creates a record (descriptor) then replaces it in place (null)',
       specRefs: [
-        'https://wallet.storage/spec#backends',
-        'https://wallet.storage/spec#backend-data-model'
+        'https://w3id.org/pws#backends',
+        'https://w3id.org/pws#backend-data-model'
       ],
       run: async (ctx, state) => {
         const { newSpace, gdriveRegistration } = state
@@ -193,7 +193,7 @@ export const clientBackends: Suite<State> = {
     {
       id: 'backend.select-on-collection',
       name: 'selects a registered backend on a Collection (control plane)',
-      specRefs: ['https://wallet.storage/spec#collection-backend-selected'],
+      specRefs: ['https://w3id.org/pws#collection-backend-selected'],
       run: async (ctx, state) => {
         const { newSpace, gdriveRegistration } = state
         const space = await newSpace('Select Backend')
@@ -215,8 +215,8 @@ export const clientBackends: Suite<State> = {
       name: 'a registered backend with no provider adapter is inert (data plane fails closed)',
       optional: true,
       specRefs: [
-        'https://wallet.storage/spec#backends',
-        'https://wallet.storage/spec#unsupported-backend'
+        'https://w3id.org/pws#backends',
+        'https://w3id.org/pws#unsupported-backend'
       ],
       run: async (ctx, state) => {
         const { newSpace, gdriveRegistration } = state
@@ -239,7 +239,7 @@ export const clientBackends: Suite<State> = {
     {
       id: 'backend.deregister-idempotent',
       name: 'deregisters a backend and is idempotent',
-      specRefs: ['https://wallet.storage/spec#backends'],
+      specRefs: ['https://w3id.org/pws#backends'],
       run: async (ctx, state) => {
         const { newSpace, gdriveRegistration } = state
         const space = await newSpace('Deregister Backend')

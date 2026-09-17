@@ -61,8 +61,8 @@ export const clientDelegation: Suite<State> = {
       id: 'delegation.bob-no-grant',
       name: 'bob cannot see an alice space without a grant',
       specRefs: [
-        'https://wallet.storage/spec#delegation',
-        'https://wallet.storage/spec#read-space-operation'
+        'https://w3id.org/pws/authz-profile#delegation',
+        'https://w3id.org/pws#read-space-operation'
       ],
       run: async (ctx, state) => {
         const { newSpace, bob } = state
@@ -75,8 +75,8 @@ export const clientDelegation: Suite<State> = {
       id: 'delegation.grant-read-space',
       name: 'grants read on a space; recipient reads via fromCapability',
       specRefs: [
-        'https://wallet.storage/spec#delegation',
-        'https://wallet.storage/spec#read-space-operation'
+        'https://w3id.org/pws/authz-profile#delegation',
+        'https://w3id.org/pws#read-space-operation'
       ],
       run: async (ctx, state) => {
         const { newSpace, bob } = state
@@ -93,8 +93,8 @@ export const clientDelegation: Suite<State> = {
       id: 'delegation.grant-read-resource',
       name: 'grants read on a resource; recipient reads but cannot write',
       specRefs: [
-        'https://wallet.storage/spec#delegation',
-        'https://wallet.storage/spec#read-resource-operation'
+        'https://w3id.org/pws/authz-profile#delegation',
+        'https://w3id.org/pws#read-resource-operation'
       ],
       run: async (ctx, state) => {
         const { newSpace, alice, bob } = state

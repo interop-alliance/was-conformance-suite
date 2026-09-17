@@ -1,5 +1,42 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.21.0 - TBD
+
+### Changed
+
+- `specRefs` cite the specifications by their persistent identifiers. Core
+  anchors read `https://w3id.org/pws#`, matching the error `type` URIs the tests
+  assert and the namespace the reference server emits.
+- Anchors whose passages moved out of core cite the document that now carries
+  them: `https://w3id.org/pws/authz-profile#` for delegation, the Digest header,
+  the root capability, `PublicCanRead`, and capability invocation (which
+  replaces the retired `#authorization-actions-and-the-root-capability`), and
+  `https://w3id.org/pws/encrypted-collections#` for chunked Resources, the chunk
+  operations, and the chunk address.
+- The `PublicCanRead` policy cases cite the core Policy Type Registry beside the
+  profile's definition of the type.
+- Conditional-write checks no longer gate on a `conditional-writes` Backend
+  token, and the check asserting a descriptor carries one is removed.
+  Conditional writes are a baseline requirement of every backend, so the 412
+  semantics now run unconditionally.
+- The `changes-query` gate reads the service description's WAS version entry
+  instead of a Backend descriptor. New `harness/serviceDescription.ts` fetches
+  the document by following the `Link: rel="service"` header and reports the
+  tokens a server advertises.
+- The chunk, blinded-index, and governing-history-log suites gate on the
+  Encrypted Collections entry in the service description
+  (`https://w3id.org/pws/encrypted-collections`) instead of a Backend token. The
+  chunk suite gates on the entry being listed at all, since that is itself the
+  claim the endpoints are served; the other two gate on the
+  `blinded-index-query` and `governed-history-logs` tokens of its `features`
+  array.
+- Backend descriptor checks no longer expect a `features` array; the spec
+  dropped the property.
+- Every asserted problem type now carries the base identifier
+  `https://w3id.org/pws`, replacing `https://wallet.storage/spec`. The fragments
+  are unchanged, so a server still answering under the old base fails these
+  checks.
+
 ## 0.20.0 - 2026-09-16
 
 ### Changed

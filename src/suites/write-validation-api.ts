@@ -33,18 +33,15 @@ interface State {
 function assertReservedId(expectedError: any): void {
   assert.ok(expectedError, 'expected the reserved id to be rejected')
   assert.equal(expectedError.response.status, 409)
-  assert.equal(
-    expectedError.data.type,
-    'https://wallet.storage/spec#reserved-id'
-  )
+  assert.equal(expectedError.data.type, 'https://w3id.org/pws#reserved-id')
 }
 
 export const writeValidationApi: Suite<State> = {
   id: 'write-validation-api',
   name: 'Write-validation negatives (reserved ids, Content-Type)',
   specRefs: [
-    'https://wallet.storage/spec#reserved-path-segment-registry',
-    'https://wallet.storage/spec#content-types-and-representations'
+    'https://w3id.org/pws#reserved-path-segment-registry',
+    'https://w3id.org/pws#content-types-and-representations'
   ],
 
   setup: async ctx => {
@@ -86,8 +83,8 @@ export const writeValidationApi: Suite<State> = {
         '[root] creating a Collection whose body `id` is a reserved segment ' +
         '(`query`) is rejected with 409 reserved-id',
       specRefs: [
-        'https://wallet.storage/spec#space-level-reserved-endpoints',
-        'https://wallet.storage/spec#reserved-id'
+        'https://w3id.org/pws#space-level-reserved-endpoints',
+        'https://w3id.org/pws#reserved-id'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -112,9 +109,9 @@ export const writeValidationApi: Suite<State> = {
         '[root] creating a Collection by PUT at a reserved path segment ' +
         '(`export`) is rejected with 409 reserved-id',
       specRefs: [
-        'https://wallet.storage/spec#space-level-reserved-endpoints',
-        'https://wallet.storage/spec#update-or-create-by-id-collection-operation',
-        'https://wallet.storage/spec#reserved-id'
+        'https://w3id.org/pws#space-level-reserved-endpoints',
+        'https://w3id.org/pws#update-or-create-by-id-collection-operation',
+        'https://w3id.org/pws#reserved-id'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -147,8 +144,8 @@ export const writeValidationApi: Suite<State> = {
         '[root] a Resource write without a `Content-Type` header is ' +
         'rejected with 400 missing-content-type',
       specRefs: [
-        'https://wallet.storage/spec#content-types-and-representations',
-        'https://wallet.storage/spec#missing-content-type'
+        'https://w3id.org/pws#content-types-and-representations',
+        'https://w3id.org/pws#missing-content-type'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -180,10 +177,7 @@ export const writeValidationApi: Suite<State> = {
           /application\/problem\+json/
         )
         const problem: any = await response.json()
-        assert.equal(
-          problem.type,
-          'https://wallet.storage/spec#missing-content-type'
-        )
+        assert.equal(problem.type, 'https://w3id.org/pws#missing-content-type')
       }
     }
   ]

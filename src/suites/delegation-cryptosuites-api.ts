@@ -79,7 +79,7 @@ function delegationProof(capability: any): Record<string, string> {
 export const delegationCryptosuitesApi: Suite<State> = {
   id: 'delegation-cryptosuites',
   name: 'Delegation-proof cryptosuites',
-  specRefs: ['https://wallet.storage/spec#delegation'],
+  specRefs: ['https://w3id.org/pws/authz-profile#delegation'],
 
   setup: async ctx => {
     const alice: any = { ...ctx.actors.alice }
@@ -131,7 +131,7 @@ export const delegationCryptosuitesApi: Suite<State> = {
     {
       id: 'cryptosuites.eddsa-jcs-2022',
       name: 'accepts a delegation proof signed with eddsa-jcs-2022',
-      specRefs: ['https://wallet.storage/spec#delegation'],
+      specRefs: ['https://w3id.org/pws/authz-profile#delegation'],
       run: async (ctx, state) => {
         const { alice, aliceDelegatedApp, docUrl } = state
         const capability = await alice.rootClient.delegate({
@@ -156,7 +156,7 @@ export const delegationCryptosuitesApi: Suite<State> = {
       // Optional: the older suite, which a server may reasonably no longer
       // accept. The spec names no cryptosuite either way.
       optional: true,
-      specRefs: ['https://wallet.storage/spec#delegation'],
+      specRefs: ['https://w3id.org/pws/authz-profile#delegation'],
       run: async (ctx, state) => {
         const { alice, aliceDelegatedApp, docUrl } = state
         // Alice's own signer, but a client on the older suite -- the shape a
@@ -182,7 +182,7 @@ export const delegationCryptosuitesApi: Suite<State> = {
       name: 'accepts a chain whose links mix the two cryptosuites',
       // Optional for the same reason: its parent link is Ed25519Signature2020.
       optional: true,
-      specRefs: ['https://wallet.storage/spec#delegation'],
+      specRefs: ['https://w3id.org/pws/authz-profile#delegation'],
       run: async (ctx, state) => {
         const { alice, aliceDelegatedApp, bob, docUrl } = state
         // An Ed25519Signature2020 parent...

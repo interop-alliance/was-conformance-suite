@@ -166,7 +166,7 @@ export const collectionApi: Suite<State> = {
       id: 'collection.create-unauthorized-401',
       name: 'POST /space/:spaceId/ should 401 error when no authorization headers',
       specRefs: [
-        'https://wallet.storage/spec#create-collection-add-collection-to-a-space-operation'
+        'https://w3id.org/pws#create-collection-add-collection-to-a-space-operation'
       ],
       run: async ctx => {
         const { serverUrl } = ctx
@@ -187,7 +187,7 @@ export const collectionApi: Suite<State> = {
       id: 'collection.create-missing-space-404',
       name: 'POST /space/:spaceId/ should 404 error on not found space id',
       specRefs: [
-        'https://wallet.storage/spec#create-collection-add-collection-to-a-space-operation'
+        'https://w3id.org/pws#create-collection-add-collection-to-a-space-operation'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -220,7 +220,7 @@ export const collectionApi: Suite<State> = {
       id: 'collection.create-post',
       name: '[root] create collection via POST',
       specRefs: [
-        'https://wallet.storage/spec#create-collection-add-collection-to-a-space-operation'
+        'https://w3id.org/pws#create-collection-add-collection-to-a-space-operation'
       ],
       run: async (ctx, state) => {
         const { serverUrl, withoutCreatedBy } = ctx
@@ -252,7 +252,7 @@ export const collectionApi: Suite<State> = {
     {
       id: 'collection.create-post-id-conflict-409',
       name: '[root] POST with an existing collection id yields id-conflict (409)',
-      specRefs: ['https://wallet.storage/spec#id-conflict'],
+      specRefs: ['https://w3id.org/pws#id-conflict'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice } = state
@@ -275,14 +275,14 @@ export const collectionApi: Suite<State> = {
         assert.equal(expectedError.response.status, 409)
         assert.equal(
           expectedError.data.type,
-          'https://wallet.storage/spec#id-conflict'
+          'https://w3id.org/pws#id-conflict'
         )
       }
     },
     {
       id: 'collection.list-items',
       name: '[root] list collection items via GET :collectionId/',
-      specRefs: ['https://wallet.storage/spec#list-collection-operation'],
+      specRefs: ['https://w3id.org/pws#list-collection-operation'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice } = state
@@ -310,8 +310,8 @@ export const collectionApi: Suite<State> = {
       id: 'collection.read-metadata',
       name: '[root] get the Collection Metadata object via GET :collectionId/meta',
       specRefs: [
-        'https://wallet.storage/spec#read-collection-metadata-operation',
-        'https://wallet.storage/spec#collection-metadata-data-model'
+        'https://w3id.org/pws#read-collection-metadata-operation',
+        'https://w3id.org/pws#collection-metadata-data-model'
       ],
       run: async (ctx, state) => {
         const { serverUrl, withoutCreatedBy } = ctx
@@ -349,7 +349,7 @@ export const collectionApi: Suite<State> = {
         '[root] the non-canonical (no-slash) Collection URL 308s to the ' +
         'canonical (trailing-slash) form; the canonical form is not redirected',
       optional: true,
-      specRefs: ['https://wallet.storage/spec#reading-this-document'],
+      specRefs: ['https://w3id.org/pws#reading-this-document'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice } = state
@@ -387,7 +387,7 @@ export const collectionApi: Suite<State> = {
       name:
         '[root] PUT at the canonical Collection URL is 405 (PUT is not ' +
         'defined at the container)',
-      specRefs: ['https://wallet.storage/spec#collection-metadata-data-model'],
+      specRefs: ['https://w3id.org/pws#collection-metadata-data-model'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice } = state
@@ -425,8 +425,8 @@ export const collectionApi: Suite<State> = {
       id: 'collection.paginate-limit-next',
       name: '[root] paginates List Collection via ?limit and follows next (spec Pagination)',
       specRefs: [
-        'https://wallet.storage/spec#list-collection-operation',
-        'https://wallet.storage/spec#pagination'
+        'https://w3id.org/pws#list-collection-operation',
+        'https://w3id.org/pws#pagination'
       ],
       run: async (ctx, state) => {
         const { serverUrl, generateId } = ctx
@@ -487,7 +487,7 @@ export const collectionApi: Suite<State> = {
     {
       id: 'collection.malformed-cursor-400',
       name: '[root] a malformed cursor yields invalid-cursor (400)',
-      specRefs: ['https://wallet.storage/spec#invalid-cursor'],
+      specRefs: ['https://w3id.org/pws#invalid-cursor'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice } = state
@@ -507,7 +507,7 @@ export const collectionApi: Suite<State> = {
         assert.equal(expectedError.response.status, 400)
         assert.equal(
           expectedError.data.type,
-          'https://wallet.storage/spec#invalid-cursor'
+          'https://w3id.org/pws#invalid-cursor'
         )
       }
     },
@@ -515,8 +515,8 @@ export const collectionApi: Suite<State> = {
       id: 'collection.create-delete-by-id',
       name: '[root] create and delete a collection by id',
       specRefs: [
-        'https://wallet.storage/spec#update-or-create-by-id-collection-operation',
-        'https://wallet.storage/spec#delete-collection-operation'
+        'https://w3id.org/pws#update-or-create-by-id-collection-operation',
+        'https://w3id.org/pws#delete-collection-operation'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -566,8 +566,8 @@ export const collectionApi: Suite<State> = {
         '[root] creating a Collection naming an unregistered backend id is ' +
         'rejected with 409 unsupported-backend',
       specRefs: [
-        'https://wallet.storage/spec#collection-backend-selected',
-        'https://wallet.storage/spec#unsupported-backend'
+        'https://w3id.org/pws#collection-backend-selected',
+        'https://w3id.org/pws#unsupported-backend'
       ],
       run: async (ctx, state) => {
         const { serverUrl, generateId } = ctx
@@ -597,7 +597,7 @@ export const collectionApi: Suite<State> = {
         assert.equal(expectedError.response.status, 409)
         assert.equal(
           expectedError.data.type,
-          'https://wallet.storage/spec#unsupported-backend'
+          'https://w3id.org/pws#unsupported-backend'
         )
       }
     },
@@ -607,8 +607,8 @@ export const collectionApi: Suite<State> = {
         '[root] creating a Collection with the reserved id `meta` via POST ' +
         'is rejected with 409 reserved-id',
       specRefs: [
-        'https://wallet.storage/spec#space-level-reserved-endpoints',
-        'https://wallet.storage/spec#reserved-id'
+        'https://w3id.org/pws#space-level-reserved-endpoints',
+        'https://w3id.org/pws#reserved-id'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -634,7 +634,7 @@ export const collectionApi: Suite<State> = {
         assert.equal(expectedError.response.status, 409)
         assert.equal(
           expectedError.data.type,
-          'https://wallet.storage/spec#reserved-id'
+          'https://w3id.org/pws#reserved-id'
         )
       }
     },
@@ -644,8 +644,8 @@ export const collectionApi: Suite<State> = {
         '[delegated] a single list capability reads every page; no per-page ' +
         're-delegation is required',
       specRefs: [
-        'https://wallet.storage/spec#pagination',
-        'https://wallet.storage/spec#root-capability'
+        'https://w3id.org/pws#pagination',
+        'https://w3id.org/pws/authz-profile#root-capability'
       ],
       run: async (ctx, state) => {
         const { serverUrl, generateId } = ctx
@@ -732,8 +732,8 @@ export const collectionApi: Suite<State> = {
       name: '[root] GET Collection Metadata (/meta), or skip if unimplemented',
       group: 'Collection Metadata',
       specRefs: [
-        'https://wallet.storage/spec#read-collection-metadata-operation',
-        'https://wallet.storage/spec#collection-metadata-data-model'
+        'https://w3id.org/pws#read-collection-metadata-operation',
+        'https://w3id.org/pws#collection-metadata-data-model'
       ],
       run: async (ctx, state) => {
         const { alice } = state
@@ -767,8 +767,8 @@ export const collectionApi: Suite<State> = {
       name: '[root] PUT Collection Metadata sets `custom`, round-tripped by GET',
       group: 'Collection Metadata',
       specRefs: [
-        'https://wallet.storage/spec#update-or-create-by-id-collection-operation',
-        'https://wallet.storage/spec#read-collection-metadata-operation'
+        'https://w3id.org/pws#update-or-create-by-id-collection-operation',
+        'https://w3id.org/pws#read-collection-metadata-operation'
       ],
       run: async (ctx, state) => {
         const { alice } = state
@@ -815,7 +815,7 @@ export const collectionApi: Suite<State> = {
         '`custom` clears it',
       group: 'Collection Metadata',
       specRefs: [
-        'https://wallet.storage/spec#update-or-create-by-id-collection-operation'
+        'https://w3id.org/pws#update-or-create-by-id-collection-operation'
       ],
       run: async (ctx, state) => {
         const { alice } = state
@@ -862,8 +862,8 @@ export const collectionApi: Suite<State> = {
         'members (read-modify-write is safe)',
       group: 'Collection Metadata',
       specRefs: [
-        'https://wallet.storage/spec#update-or-create-by-id-collection-operation',
-        'https://wallet.storage/spec#collection-metadata-data-model'
+        'https://w3id.org/pws#update-or-create-by-id-collection-operation',
+        'https://w3id.org/pws#collection-metadata-data-model'
       ],
       run: async (ctx, state) => {
         const { alice } = state
@@ -917,7 +917,7 @@ export const collectionApi: Suite<State> = {
         'it (201), the `Location` naming the Collection',
       group: 'Collection Metadata',
       specRefs: [
-        'https://wallet.storage/spec#update-or-create-by-id-collection-operation'
+        'https://w3id.org/pws#update-or-create-by-id-collection-operation'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -958,8 +958,8 @@ export const collectionApi: Suite<State> = {
         'rejected with 400 invalid-request-body',
       group: 'Collection Metadata',
       specRefs: [
-        'https://wallet.storage/spec#update-or-create-by-id-collection-operation',
-        'https://wallet.storage/spec#invalid-request-body'
+        'https://w3id.org/pws#update-or-create-by-id-collection-operation',
+        'https://w3id.org/pws#invalid-request-body'
       ],
       run: async (ctx, state) => {
         const { alice } = state
@@ -983,7 +983,7 @@ export const collectionApi: Suite<State> = {
         assert.equal(expectedError.response.status, 400)
         assert.equal(
           expectedError.data.type,
-          'https://wallet.storage/spec#invalid-request-body'
+          'https://w3id.org/pws#invalid-request-body'
         )
       }
     },
@@ -994,9 +994,9 @@ export const collectionApi: Suite<State> = {
         'one succeeds',
       group: 'Collection Metadata',
       specRefs: [
-        'https://wallet.storage/spec#update-or-create-by-id-collection-operation',
-        'https://wallet.storage/spec#conditional-requests',
-        'https://wallet.storage/spec#precondition-failed'
+        'https://w3id.org/pws#update-or-create-by-id-collection-operation',
+        'https://w3id.org/pws#conditional-requests',
+        'https://w3id.org/pws#precondition-failed'
       ],
       run: async (ctx, state) => {
         const { alice } = state
@@ -1028,7 +1028,7 @@ export const collectionApi: Suite<State> = {
         assert.equal(expectedError.response.status, 412)
         assert.equal(
           expectedError.data.type,
-          'https://wallet.storage/spec#precondition-failed'
+          'https://w3id.org/pws#precondition-failed'
         )
 
         // The rejected write left the stored metadata alone.
@@ -1066,8 +1066,8 @@ export const collectionApi: Suite<State> = {
         'Metadata advance the same ETag',
       group: 'Collection Metadata',
       specRefs: [
-        'https://wallet.storage/spec#collection-metadata-versioning',
-        'https://wallet.storage/spec#conditional-requests'
+        'https://w3id.org/pws#collection-metadata-versioning',
+        'https://w3id.org/pws#conditional-requests'
       ],
       run: async (ctx, state) => {
         const { alice } = state
@@ -1123,8 +1123,8 @@ export const collectionApi: Suite<State> = {
         'header, not a reserved-id 409',
       group: 'Collection Metadata',
       specRefs: [
-        'https://wallet.storage/spec#collection-metadata-data-model',
-        'https://wallet.storage/spec#methods-at-reserved-endpoints'
+        'https://w3id.org/pws#collection-metadata-data-model',
+        'https://w3id.org/pws#methods-at-reserved-endpoints'
       ],
       run: async (ctx, state) => {
         const { alice } = state
@@ -1159,7 +1159,7 @@ export const collectionApi: Suite<State> = {
         assert.equal(expectedError.data.type, 'about:blank')
         assert.notEqual(
           expectedError.data.type,
-          'https://wallet.storage/spec#reserved-id'
+          'https://w3id.org/pws#reserved-id'
         )
       }
     },
@@ -1177,8 +1177,8 @@ export const collectionApi: Suite<State> = {
       // itself, is unavailable.
       optional: true,
       specRefs: [
-        'https://wallet.storage/spec#update-or-create-by-id-collection-operation',
-        'https://wallet.storage/spec#collection-metadata-data-model'
+        'https://w3id.org/pws#update-or-create-by-id-collection-operation',
+        'https://w3id.org/pws#collection-metadata-data-model'
       ],
       run: async (ctx, state) => {
         const { serverUrl, generateId } = ctx

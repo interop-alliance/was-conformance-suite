@@ -259,7 +259,7 @@ export const spacesApi: Suite<State> = {
       id: 'repository.anonymous-list-empty',
       name: 'GET /spaces/ without auth headers returns the empty listing (200)',
       group: 'Spaces Repository API',
-      specRefs: ['https://wallet.storage/spec#list-spaces-operation'],
+      specRefs: ['https://w3id.org/pws#list-spaces-operation'],
       run: async ctx => {
         const { serverUrl } = ctx
         // List Spaces is the spec's exception to 404 masking: an anonymous
@@ -277,7 +277,7 @@ export const spacesApi: Suite<State> = {
       id: 'repository.list-scoped-to-controller',
       name: '[root] GET /spaces/ lists only spaces controlled by the requester',
       group: 'Spaces Repository API',
-      specRefs: ['https://wallet.storage/spec#list-spaces-operation'],
+      specRefs: ['https://w3id.org/pws#list-spaces-operation'],
       run: async (ctx, state) => {
         const { serverUrl, createSpace, generateId } = ctx
         const { alice, bob } = state
@@ -325,7 +325,7 @@ export const spacesApi: Suite<State> = {
       id: 'repository.create-unauthorized-401',
       name: 'POST /spaces/ should 401 error when no authorization headers',
       group: 'Spaces Repository API',
-      specRefs: ['https://wallet.storage/spec#create-space-operation'],
+      specRefs: ['https://w3id.org/pws#create-space-operation'],
       run: async ctx => {
         const { serverUrl } = ctx
         const response = await fetch(new URL('/spaces/', serverUrl), {
@@ -343,8 +343,8 @@ export const spacesApi: Suite<State> = {
       name: 'POST /spaces/ without a "controller" in the body yields invalid-request-body (400)',
       group: 'Spaces Repository API',
       specRefs: [
-        'https://wallet.storage/spec#create-space-errors',
-        'https://wallet.storage/spec#invalid-request-body'
+        'https://w3id.org/pws#create-space-errors',
+        'https://w3id.org/pws#invalid-request-body'
       ],
       run: async (ctx, state) => {
         const { createSpace, generateId } = ctx
@@ -369,10 +369,7 @@ export const spacesApi: Suite<State> = {
           problem = err.data
         }
         assert.equal(status, 400)
-        assert.equal(
-          problem.type,
-          'https://wallet.storage/spec#invalid-request-body'
-        )
+        assert.equal(problem.type, 'https://w3id.org/pws#invalid-request-body')
       }
     },
     {
@@ -380,8 +377,8 @@ export const spacesApi: Suite<State> = {
       name: "[root] POST /spaces/ signed by a key that is not the body's controller yields controller-mismatch (400)",
       group: 'Spaces Repository API',
       specRefs: [
-        'https://wallet.storage/spec#create-space-errors',
-        'https://wallet.storage/spec#controller-mismatch'
+        'https://w3id.org/pws#create-space-errors',
+        'https://w3id.org/pws#controller-mismatch'
       ],
       run: async (ctx, state) => {
         const { serverUrl, generateId } = ctx
@@ -417,7 +414,7 @@ export const spacesApi: Suite<State> = {
         assert.equal(expectedError.response.status, 400)
         assert.equal(
           expectedError.data.type,
-          'https://wallet.storage/spec#controller-mismatch'
+          'https://w3id.org/pws#controller-mismatch'
         )
 
         // The Space must not have been created: its named controller (Alice)
@@ -440,8 +437,8 @@ export const spacesApi: Suite<State> = {
       name: 'POST /spaces/ with a non-URL-safe space id yields invalid-id (400)',
       group: 'Spaces Repository API',
       specRefs: [
-        'https://wallet.storage/spec#identifiers',
-        'https://wallet.storage/spec#invalid-id'
+        'https://w3id.org/pws#identifiers',
+        'https://w3id.org/pws#invalid-id'
       ],
       run: async (ctx, state) => {
         const { createSpace } = ctx
@@ -470,7 +467,7 @@ export const spacesApi: Suite<State> = {
           problem = err.data
         }
         assert.equal(status, 400)
-        assert.equal(problem.type, 'https://wallet.storage/spec#invalid-id')
+        assert.equal(problem.type, 'https://w3id.org/pws#invalid-id')
       }
     },
     {
@@ -478,8 +475,8 @@ export const spacesApi: Suite<State> = {
       name: 'POST /spaces/ whose body controller is not a DID is rejected (400 invalid-request-body)',
       group: 'Spaces Repository API',
       specRefs: [
-        'https://wallet.storage/spec#create-space-errors',
-        'https://wallet.storage/spec#invalid-request-body'
+        'https://w3id.org/pws#create-space-errors',
+        'https://w3id.org/pws#invalid-request-body'
       ],
       run: async (ctx, state) => {
         const { createSpace, generateId } = ctx
@@ -506,10 +503,7 @@ export const spacesApi: Suite<State> = {
           problem = err.data
         }
         assert.equal(status, 400)
-        assert.equal(
-          problem.type,
-          'https://wallet.storage/spec#invalid-request-body'
-        )
+        assert.equal(problem.type, 'https://w3id.org/pws#invalid-request-body')
       }
     },
     {
@@ -517,9 +511,9 @@ export const spacesApi: Suite<State> = {
       name: 'POST /spaces/ whose body controller is a DID of an unregistered method is rejected (400 invalid-request-body)',
       group: 'Spaces Repository API',
       specRefs: [
-        'https://wallet.storage/spec#space-controller-did-method-registry',
-        'https://wallet.storage/spec#create-space-errors',
-        'https://wallet.storage/spec#invalid-request-body'
+        'https://w3id.org/pws#space-controller-did-method-registry',
+        'https://w3id.org/pws#create-space-errors',
+        'https://w3id.org/pws#invalid-request-body'
       ],
       run: async (ctx, state) => {
         const { createSpace, generateId } = ctx
@@ -546,10 +540,7 @@ export const spacesApi: Suite<State> = {
           problem = err.data
         }
         assert.equal(status, 400)
-        assert.equal(
-          problem.type,
-          'https://wallet.storage/spec#invalid-request-body'
-        )
+        assert.equal(problem.type, 'https://w3id.org/pws#invalid-request-body')
       }
     },
     {
@@ -557,8 +548,8 @@ export const spacesApi: Suite<State> = {
       name: "[delegated] a provisioning app creates a Space on Alice's behalf via POST (201)",
       group: 'Spaces Repository API',
       specRefs: [
-        'https://wallet.storage/spec#create-space-operation',
-        'https://wallet.storage/spec#was-authorization-profile-v0-1'
+        'https://w3id.org/pws#create-space-operation',
+        'https://w3id.org/pws#was-authorization-profile-v0-1'
       ],
       run: async (ctx, state) => {
         const { serverUrl, zcapClient, generateId } = ctx
@@ -625,8 +616,8 @@ export const spacesApi: Suite<State> = {
       name: "[delegated] POST /spaces/ via a chain rooted in a DID other than the body's controller yields controller-mismatch (400)",
       group: 'Spaces Repository API',
       specRefs: [
-        'https://wallet.storage/spec#create-space-errors',
-        'https://wallet.storage/spec#controller-mismatch'
+        'https://w3id.org/pws#create-space-errors',
+        'https://w3id.org/pws#controller-mismatch'
       ],
       run: async (ctx, state) => {
         if (ctx.onboardingToken) {
@@ -644,10 +635,7 @@ export const spacesApi: Suite<State> = {
           shape: 'foreign-root'
         })
         assert.equal(status, 400)
-        assert.equal(
-          problem.type,
-          'https://wallet.storage/spec#controller-mismatch'
-        )
+        assert.equal(problem.type, 'https://w3id.org/pws#controller-mismatch')
         await assertSpaceNotCreated({ ctx, alice: state.alice, spaceId })
       }
     },
@@ -656,8 +644,8 @@ export const spacesApi: Suite<State> = {
       name: '[delegated] POST /spaces/ via an expired delegation yields controller-mismatch (400)',
       group: 'Spaces Repository API',
       specRefs: [
-        'https://wallet.storage/spec#create-space-errors',
-        'https://wallet.storage/spec#controller-mismatch'
+        'https://w3id.org/pws#create-space-errors',
+        'https://w3id.org/pws#controller-mismatch'
       ],
       run: async (ctx, state) => {
         if (ctx.onboardingToken) {
@@ -675,10 +663,7 @@ export const spacesApi: Suite<State> = {
           shape: 'expired'
         })
         assert.equal(status, 400)
-        assert.equal(
-          problem.type,
-          'https://wallet.storage/spec#controller-mismatch'
-        )
+        assert.equal(problem.type, 'https://w3id.org/pws#controller-mismatch')
         await assertSpaceNotCreated({ ctx, alice: state.alice, spaceId })
       }
     },
@@ -687,8 +672,8 @@ export const spacesApi: Suite<State> = {
       name: '[delegated] POST /spaces/ via a delegation whose proof fails verification yields controller-mismatch (400)',
       group: 'Spaces Repository API',
       specRefs: [
-        'https://wallet.storage/spec#create-space-errors',
-        'https://wallet.storage/spec#controller-mismatch'
+        'https://w3id.org/pws#create-space-errors',
+        'https://w3id.org/pws#controller-mismatch'
       ],
       run: async (ctx, state) => {
         if (ctx.onboardingToken) {
@@ -705,10 +690,7 @@ export const spacesApi: Suite<State> = {
           shape: 'tampered-proof'
         })
         assert.equal(status, 400)
-        assert.equal(
-          problem.type,
-          'https://wallet.storage/spec#controller-mismatch'
-        )
+        assert.equal(problem.type, 'https://w3id.org/pws#controller-mismatch')
         await assertSpaceNotCreated({ ctx, alice: state.alice, spaceId })
       }
     },
@@ -718,8 +700,8 @@ export const spacesApi: Suite<State> = {
       group: 'Spaces Repository API',
       optional: true,
       specRefs: [
-        'https://wallet.storage/spec#create-space-errors',
-        'https://wallet.storage/spec#controller-mismatch'
+        'https://w3id.org/pws#create-space-errors',
+        'https://w3id.org/pws#controller-mismatch'
       ],
       run: async (ctx, state) => {
         if (ctx.onboardingToken) {
@@ -760,7 +742,7 @@ export const spacesApi: Suite<State> = {
       id: 'repository.error-body-type-and-title',
       name: 'an error response carries both a non-empty `type` and a non-empty `title`',
       group: 'Spaces Repository API',
-      specRefs: ['https://wallet.storage/spec#error-handling'],
+      specRefs: ['https://w3id.org/pws#error-handling'],
       run: async ctx => {
         const { serverUrl } = ctx
         // An unauthenticated Create Space is a request/credential failure (401),
@@ -794,7 +776,7 @@ export const spacesApi: Suite<State> = {
       id: 'space.create-post',
       name: '[root] create space via POST',
       group: 'Space API',
-      specRefs: ['https://wallet.storage/spec#create-space-operation'],
+      specRefs: ['https://w3id.org/pws#create-space-operation'],
       run: async (ctx, state) => {
         const { serverUrl, createSpace, generateId, withoutCreatedBy } = ctx
         const { alice } = state
@@ -835,7 +817,7 @@ export const spacesApi: Suite<State> = {
       id: 'space.create-post-id-conflict-409',
       name: '[root] POST /spaces/ with an existing id yields id-conflict (409)',
       group: 'Space API',
-      specRefs: ['https://wallet.storage/spec#id-conflict'],
+      specRefs: ['https://w3id.org/pws#id-conflict'],
       run: async (ctx, state) => {
         const { createSpace } = ctx
         const { alice } = state
@@ -859,16 +841,14 @@ export const spacesApi: Suite<State> = {
           problem = err.data
         }
         assert.equal(status, 409)
-        assert.equal(problem.type, 'https://wallet.storage/spec#id-conflict')
+        assert.equal(problem.type, 'https://w3id.org/pws#id-conflict')
       }
     },
     {
       id: 'space.create-put',
       name: '[root] create space by id via PUT of its Space Metadata object',
       group: 'Space API',
-      specRefs: [
-        'https://wallet.storage/spec#update-or-create-by-id-space-operation'
-      ],
+      specRefs: ['https://w3id.org/pws#update-or-create-by-id-space-operation'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice } = state
@@ -902,8 +882,8 @@ export const spacesApi: Suite<State> = {
       name: "[root] a PUT swapping 'controller', signed by the would-be new controller, yields 404 and does not transfer the Space",
       group: 'Space API',
       specRefs: [
-        'https://wallet.storage/spec#update-or-create-by-id-space-operation',
-        'https://wallet.storage/spec#not-found'
+        'https://w3id.org/pws#update-or-create-by-id-space-operation',
+        'https://w3id.org/pws#not-found'
       ],
       run: async (ctx, state) => {
         const { serverUrl, createSpace, generateId } = ctx
@@ -948,7 +928,7 @@ export const spacesApi: Suite<State> = {
           )
           assert.equal(
             expectedError.data.type,
-            'https://wallet.storage/spec#not-found'
+            'https://w3id.org/pws#not-found'
           )
 
           // The operation must not have been performed: Alice still controls
@@ -977,10 +957,10 @@ export const spacesApi: Suite<State> = {
       name: "[root] a PUT changing 'controller' to a DID of an unregistered method yields invalid-request-body (400) and leaves the Space unchanged",
       group: 'Space API',
       specRefs: [
-        'https://wallet.storage/spec#space-controller-did-method-registry',
-        'https://wallet.storage/spec#setting-a-controller-to-optional-did-method',
-        'https://wallet.storage/spec#update-or-create-by-id-space-operation',
-        'https://wallet.storage/spec#invalid-request-body'
+        'https://w3id.org/pws#space-controller-did-method-registry',
+        'https://w3id.org/pws#setting-a-controller-to-optional-did-method',
+        'https://w3id.org/pws#update-or-create-by-id-space-operation',
+        'https://w3id.org/pws#invalid-request-body'
       ],
       run: async (ctx, state) => {
         const { serverUrl, createSpace, generateId } = ctx
@@ -1029,7 +1009,7 @@ export const spacesApi: Suite<State> = {
           )
           assert.equal(
             expectedError.data.type,
-            'https://wallet.storage/spec#invalid-request-body'
+            'https://w3id.org/pws#invalid-request-body'
           )
 
           const checkResponse = await alice.rootClient.request({
@@ -1055,8 +1035,8 @@ export const spacesApi: Suite<State> = {
       name: 'GET /space/:spaceId/meta with no auth headers falls through to policy and 404s (no public policy)',
       group: 'Space API',
       specRefs: [
-        'https://wallet.storage/spec#read-space-operation',
-        'https://wallet.storage/spec#read-space-errors'
+        'https://w3id.org/pws#read-space-operation',
+        'https://w3id.org/pws#read-space-errors'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -1078,7 +1058,7 @@ export const spacesApi: Suite<State> = {
       name: '[root] the non-canonical Space URL 308s to the canonical trailing-slash form; the canonical form is not redirected',
       group: 'Space API',
       optional: true,
-      specRefs: ['https://wallet.storage/spec#reading-this-document'],
+      specRefs: ['https://w3id.org/pws#reading-this-document'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice } = state
@@ -1111,7 +1091,7 @@ export const spacesApi: Suite<State> = {
       id: 'space.put-container-405',
       name: '[root] PUT /space/:spaceId/ (the container URL) is refused with 405 and an Allow header that excludes PUT',
       group: 'Space API',
-      specRefs: ['https://wallet.storage/spec#space-metadata-data-model'],
+      specRefs: ['https://w3id.org/pws#space-metadata-data-model'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice } = state
@@ -1148,8 +1128,8 @@ export const spacesApi: Suite<State> = {
       name: 'GET /space/:spaceId/meta should 404 error on not found space id',
       group: 'Space API',
       specRefs: [
-        'https://wallet.storage/spec#read-space-operation',
-        'https://wallet.storage/spec#read-space-errors'
+        'https://w3id.org/pws#read-space-operation',
+        'https://w3id.org/pws#read-space-errors'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -1175,7 +1155,7 @@ export const spacesApi: Suite<State> = {
       id: 'space.read-authorized',
       name: '[root] read the Space Metadata object via GET with proper authorization',
       group: 'Space API',
-      specRefs: ['https://wallet.storage/spec#read-space-operation'],
+      specRefs: ['https://w3id.org/pws#read-space-operation'],
       run: async (ctx, state) => {
         const { serverUrl, withoutCreatedBy } = ctx
         const { alice } = state
@@ -1201,8 +1181,8 @@ export const spacesApi: Suite<State> = {
       name: '[delegated] authorized app should GET /space/:spaceId/meta',
       group: 'Space API',
       specRefs: [
-        'https://wallet.storage/spec#read-space-operation',
-        'https://wallet.storage/spec#was-authorization-profile-v0-1'
+        'https://w3id.org/pws#read-space-operation',
+        'https://w3id.org/pws#was-authorization-profile-v0-1'
       ],
       run: async (ctx, state) => {
         const { serverUrl, zcapClient, withoutCreatedBy } = ctx
@@ -1244,8 +1224,8 @@ export const spacesApi: Suite<State> = {
       name: "[root] Bob should not be able to GET Alice's Space Metadata object",
       group: 'Space API',
       specRefs: [
-        'https://wallet.storage/spec#read-space-operation',
-        'https://wallet.storage/spec#read-space-errors'
+        'https://w3id.org/pws#read-space-operation',
+        'https://w3id.org/pws#read-space-errors'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -1272,7 +1252,7 @@ export const spacesApi: Suite<State> = {
       id: 'space.delete',
       name: '[root] Alice should be able to DELETE her provisioned space',
       group: 'Space API',
-      specRefs: ['https://wallet.storage/spec#delete-space-operation'],
+      specRefs: ['https://w3id.org/pws#delete-space-operation'],
       run: async (ctx, state) => {
         const { serverUrl, createSpace, generateId } = ctx
         const { alice } = state
@@ -1309,8 +1289,8 @@ export const spacesApi: Suite<State> = {
       name: '[root] a conflicting POST leaves the original Space untouched (409)',
       group: 'Space API',
       specRefs: [
-        'https://wallet.storage/spec#create-space-errors',
-        'https://wallet.storage/spec#id-conflict'
+        'https://w3id.org/pws#create-space-errors',
+        'https://w3id.org/pws#id-conflict'
       ],
       run: async (ctx, state) => {
         const { serverUrl, createSpace, generateId } = ctx
@@ -1347,7 +1327,7 @@ export const spacesApi: Suite<State> = {
             problem = err.data
           }
           assert.equal(status, 409)
-          assert.equal(problem.type, 'https://wallet.storage/spec#id-conflict')
+          assert.equal(problem.type, 'https://w3id.org/pws#id-conflict')
 
           // The original Space is untouched: its name and controller are as
           // first created, not the conflicting POST's proposed values.
@@ -1375,7 +1355,7 @@ export const spacesApi: Suite<State> = {
       id: 'space.create-ignores-body-createdby',
       name: '[root] a body-supplied `createdBy` is ignored by the server',
       group: 'Space API',
-      specRefs: ['https://wallet.storage/spec#space-metadata-data-model'],
+      specRefs: ['https://w3id.org/pws#space-metadata-data-model'],
       run: async (ctx, state) => {
         const { serverUrl, createSpace, generateId } = ctx
         const { alice } = state
@@ -1425,8 +1405,8 @@ export const spacesApi: Suite<State> = {
       name: '[root] PUT-creating a new Space, signed by someone other than the body controller, yields controller-mismatch (400)',
       group: 'Space API',
       specRefs: [
-        'https://wallet.storage/spec#update-or-create-by-id-space-operation',
-        'https://wallet.storage/spec#controller-mismatch'
+        'https://w3id.org/pws#update-or-create-by-id-space-operation',
+        'https://w3id.org/pws#controller-mismatch'
       ],
       run: async (ctx, state) => {
         const { serverUrl, generateId } = ctx
@@ -1457,7 +1437,7 @@ export const spacesApi: Suite<State> = {
         assert.equal(expectedError.response.status, 400)
         assert.equal(
           expectedError.data.type,
-          'https://wallet.storage/spec#controller-mismatch'
+          'https://w3id.org/pws#controller-mismatch'
         )
 
         // The Space must not have been created: its named controller (Alice)
@@ -1481,8 +1461,8 @@ export const spacesApi: Suite<State> = {
       name: "[root] GET /space/:spaceId/policy is served as the policy endpoint, not a collection named 'policy'",
       group: 'Space API',
       specRefs: [
-        'https://wallet.storage/spec#reserved-path-segment-registry',
-        'https://wallet.storage/spec#space-level-reserved-endpoints'
+        'https://w3id.org/pws#reserved-path-segment-registry',
+        'https://w3id.org/pws#space-level-reserved-endpoints'
       ],
       run: async (ctx, state) => {
         const { serverUrl, createSpace, generateId } = ctx
@@ -1541,7 +1521,7 @@ export const spacesApi: Suite<State> = {
       id: 'collections.list-for-space',
       name: '[root] GET /space/:spaceId/ lists collections for a space',
       group: 'Collections API',
-      specRefs: ['https://wallet.storage/spec#list-all-collections-operation'],
+      specRefs: ['https://w3id.org/pws#list-all-collections-operation'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice, collectionId } = state
@@ -1593,7 +1573,7 @@ export const spacesApi: Suite<State> = {
       name: '[root] GET /space/:spaceId/collections/ (retired in v0.5) MAY 308 to the Space URL',
       group: 'Collections API',
       optional: true,
-      specRefs: ['https://wallet.storage/spec#space-level-reserved-endpoints'],
+      specRefs: ['https://w3id.org/pws#space-level-reserved-endpoints'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice } = state

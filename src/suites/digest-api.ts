@@ -40,7 +40,7 @@ async function assertInvalidAuthorizationHeader(
   const problem: any = await response.json()
   assert.equal(
     problem.type,
-    'https://wallet.storage/spec#invalid-authorization-header'
+    'https://w3id.org/pws#invalid-authorization-header'
   )
 }
 
@@ -48,7 +48,7 @@ export const digestApi: Suite<State> = {
   id: 'digest-api',
   name: 'Request body integrity (Digest) negatives',
   specRefs: [
-    'https://wallet.storage/spec#request-body-integrity-digest-header'
+    'https://w3id.org/pws/authz-profile#request-body-integrity-digest-header'
   ],
 
   setup: async ctx => {
@@ -90,8 +90,8 @@ export const digestApi: Suite<State> = {
         '[root] a signed body request whose signature does not cover the ' +
         '`digest` header is rejected with 400 invalid-authorization-header',
       specRefs: [
-        'https://wallet.storage/spec#request-body-integrity-digest-header',
-        'https://wallet.storage/spec#invalid-authorization-header'
+        'https://w3id.org/pws/authz-profile#request-body-integrity-digest-header',
+        'https://w3id.org/pws#invalid-authorization-header'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -138,8 +138,8 @@ export const digestApi: Suite<State> = {
       // Independent recomputation of the received body's digest is a SHOULD.
       optional: true,
       specRefs: [
-        'https://wallet.storage/spec#request-body-integrity-digest-header',
-        'https://wallet.storage/spec#invalid-authorization-header'
+        'https://w3id.org/pws/authz-profile#request-body-integrity-digest-header',
+        'https://w3id.org/pws#invalid-authorization-header'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx

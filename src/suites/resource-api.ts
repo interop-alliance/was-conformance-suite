@@ -137,7 +137,7 @@ export const resourceApi: Suite<State> = {
     {
       id: 'resource.anonymous-read-404',
       name: 'GET a resource with no auth headers falls through to policy and 404s (no public policy)',
-      specRefs: ['https://wallet.storage/spec#read-resource-operation'],
+      specRefs: ['https://w3id.org/pws#read-resource-operation'],
       run: async ctx => {
         const { serverUrl } = ctx
         // Reads no longer 401 at the hook: an anonymous read is allowed to attempt,
@@ -156,7 +156,7 @@ export const resourceApi: Suite<State> = {
     {
       id: 'resource.read-missing-404',
       name: 'GET /space/:spaceId/:collectionId/:resourceId should 404 error on not found space id',
-      specRefs: ['https://wallet.storage/spec#read-resource-operation'],
+      specRefs: ['https://w3id.org/pws#read-resource-operation'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice } = state
@@ -181,8 +181,8 @@ export const resourceApi: Suite<State> = {
       id: 'resource.post-get',
       name: '[root] POST and GET Resource with proper authorization',
       specRefs: [
-        'https://wallet.storage/spec#create-resource-add-resource-to-collection-operation',
-        'https://wallet.storage/spec#read-resource-operation'
+        'https://w3id.org/pws#create-resource-add-resource-to-collection-operation',
+        'https://w3id.org/pws#read-resource-operation'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -230,8 +230,8 @@ export const resourceApi: Suite<State> = {
       id: 'resource.post-get-non-json',
       name: '[root] POST and GET a non-JSON resource',
       specRefs: [
-        'https://wallet.storage/spec#create-resource-add-resource-to-collection-operation',
-        'https://wallet.storage/spec#content-types-and-representations'
+        'https://w3id.org/pws#create-resource-add-resource-to-collection-operation',
+        'https://w3id.org/pws#content-types-and-representations'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -261,8 +261,8 @@ export const resourceApi: Suite<State> = {
       id: 'resource.put-get',
       name: '[root] PUT and GET Resource',
       specRefs: [
-        'https://wallet.storage/spec#update-or-create-by-id-resource-operation',
-        'https://wallet.storage/spec#read-resource-operation'
+        'https://w3id.org/pws#update-or-create-by-id-resource-operation',
+        'https://w3id.org/pws#read-resource-operation'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -293,7 +293,7 @@ export const resourceApi: Suite<State> = {
       id: 'resource.put-missing-collection-404',
       name: '[root] PUT Resource to non-existent collection should 404',
       specRefs: [
-        'https://wallet.storage/spec#update-or-create-by-id-resource-operation'
+        'https://w3id.org/pws#update-or-create-by-id-resource-operation'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -323,7 +323,7 @@ export const resourceApi: Suite<State> = {
       id: 'resource.put-upsert',
       name: '[root] PUT Resource should update existing resource (upsert)',
       specRefs: [
-        'https://wallet.storage/spec#update-or-create-by-id-resource-operation'
+        'https://w3id.org/pws#update-or-create-by-id-resource-operation'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -358,7 +358,7 @@ export const resourceApi: Suite<State> = {
     {
       id: 'resource.cross-user-read-404',
       name: "[root] Bob should not be able to GET Alice's resources",
-      specRefs: ['https://wallet.storage/spec#read-resource-operation'],
+      specRefs: ['https://w3id.org/pws#read-resource-operation'],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice, bob } = state
@@ -396,9 +396,7 @@ export const resourceApi: Suite<State> = {
     {
       id: 'resource.meta-get-or-skip',
       name: '[root] GET Resource Metadata (/meta), or skip if unimplemented',
-      specRefs: [
-        'https://wallet.storage/spec#read-resource-metadata-operation'
-      ],
+      specRefs: ['https://w3id.org/pws#read-resource-metadata-operation'],
       run: async (ctx, state) => {
         const { serverUrl, generateId } = ctx
         const { alice } = state
@@ -452,8 +450,8 @@ export const resourceApi: Suite<State> = {
       name: '[root] HEAD a binary resource returns its content-type + content-length, no body',
       group: 'HEAD Resource',
       specRefs: [
-        'https://wallet.storage/spec#read-resource-operation',
-        'https://wallet.storage/spec#content-types-and-representations'
+        'https://w3id.org/pws#read-resource-operation',
+        'https://w3id.org/pws#content-types-and-representations'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -486,7 +484,7 @@ export const resourceApi: Suite<State> = {
       id: 'head.private-denied-404',
       name: 'anonymous HEAD of a private resource is denied (404, no leak)',
       group: 'HEAD Resource',
-      specRefs: ['https://wallet.storage/spec#read-resource-operation'],
+      specRefs: ['https://w3id.org/pws#read-resource-operation'],
       run: async (ctx, state) => {
         const { serverUrl, generateId } = ctx
         const { alice } = state
@@ -510,8 +508,8 @@ export const resourceApi: Suite<State> = {
       name: 'anonymous HEAD of a PublicCanRead resource returns headers matching a GET',
       group: 'HEAD Resource',
       specRefs: [
-        'https://wallet.storage/spec#read-resource-operation',
-        'https://wallet.storage/spec#content-types-and-representations'
+        'https://w3id.org/pws#read-resource-operation',
+        'https://w3id.org/pws#content-types-and-representations'
       ],
       run: async (ctx, state) => {
         const { serverUrl, generateId } = ctx
@@ -565,8 +563,8 @@ export const resourceApi: Suite<State> = {
       id: 'resource.post-delete',
       name: '[root] POST and DELETE Resource with proper authorization',
       specRefs: [
-        'https://wallet.storage/spec#create-resource-add-resource-to-collection-operation',
-        'https://wallet.storage/spec#delete-resource-operation'
+        'https://w3id.org/pws#create-resource-add-resource-to-collection-operation',
+        'https://w3id.org/pws#delete-resource-operation'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -618,8 +616,8 @@ export const resourceApi: Suite<State> = {
         '[root] a multipart upload with no file part is rejected with 400 ' +
         'invalid-request-body',
       specRefs: [
-        'https://wallet.storage/spec#content-types-and-representations',
-        'https://wallet.storage/spec#invalid-request-body'
+        'https://w3id.org/pws#content-types-and-representations',
+        'https://w3id.org/pws#invalid-request-body'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -651,10 +649,7 @@ export const resourceApi: Suite<State> = {
           /application\/problem\+json/
         )
         const problem: any = await response.json()
-        assert.equal(
-          problem.type,
-          'https://wallet.storage/spec#invalid-request-body'
-        )
+        assert.equal(problem.type, 'https://w3id.org/pws#invalid-request-body')
       }
     },
     {
@@ -663,8 +658,8 @@ export const resourceApi: Suite<State> = {
         '[root] a multipart upload with two file parts is rejected with 400 ' +
         'invalid-request-body',
       specRefs: [
-        'https://wallet.storage/spec#content-types-and-representations',
-        'https://wallet.storage/spec#invalid-request-body'
+        'https://w3id.org/pws#content-types-and-representations',
+        'https://w3id.org/pws#invalid-request-body'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
@@ -706,10 +701,7 @@ export const resourceApi: Suite<State> = {
           /application\/problem\+json/
         )
         const problem: any = await response.json()
-        assert.equal(
-          problem.type,
-          'https://wallet.storage/spec#invalid-request-body'
-        )
+        assert.equal(problem.type, 'https://w3id.org/pws#invalid-request-body')
       }
     },
     {
@@ -717,9 +709,7 @@ export const resourceApi: Suite<State> = {
       name:
         '[root] GET a JSON Resource with an unsatisfiable Accept returns 200, ' +
         'never 406',
-      specRefs: [
-        'https://wallet.storage/spec#content-types-and-representations'
-      ],
+      specRefs: ['https://w3id.org/pws#content-types-and-representations'],
       run: async (ctx, state) => {
         const { serverUrl, generateId } = ctx
         const { alice } = state
@@ -753,8 +743,8 @@ export const resourceApi: Suite<State> = {
         '[root] PUT /meta ignores top-level contentType/size and applies only ' +
         'custom',
       specRefs: [
-        'https://wallet.storage/spec#update-resource-metadata-operation',
-        'https://wallet.storage/spec#resource-metadata-data-model'
+        'https://w3id.org/pws#update-resource-metadata-operation',
+        'https://w3id.org/pws#resource-metadata-data-model'
       ],
       run: async (ctx, state) => {
         const { serverUrl, generateId } = ctx

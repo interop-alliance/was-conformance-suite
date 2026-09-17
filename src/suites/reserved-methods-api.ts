@@ -239,8 +239,8 @@ const RESERVED_ENDPOINT_CHECKS: ReservedEndpointCheck[] = [
     methods: ['DELETE'],
     tolerate501: true,
     specRefs: [
-      'https://wallet.storage/spec#space-metadata-data-model',
-      'https://wallet.storage/spec#methods-at-reserved-endpoints'
+      'https://w3id.org/pws#space-metadata-data-model',
+      'https://w3id.org/pws#methods-at-reserved-endpoints'
     ]
   },
   {
@@ -251,8 +251,8 @@ const RESERVED_ENDPOINT_CHECKS: ReservedEndpointCheck[] = [
     methods: ['PATCH'],
     tolerate501: true,
     specRefs: [
-      'https://wallet.storage/spec#space-level-reserved-endpoints',
-      'https://wallet.storage/spec#methods-at-reserved-endpoints'
+      'https://w3id.org/pws#space-level-reserved-endpoints',
+      'https://w3id.org/pws#methods-at-reserved-endpoints'
     ]
   },
   {
@@ -263,8 +263,8 @@ const RESERVED_ENDPOINT_CHECKS: ReservedEndpointCheck[] = [
     methods: ['PATCH'],
     tolerate501: true,
     specRefs: [
-      'https://wallet.storage/spec#space-backends-available',
-      'https://wallet.storage/spec#methods-at-reserved-endpoints'
+      'https://w3id.org/pws#space-backends-available',
+      'https://w3id.org/pws#methods-at-reserved-endpoints'
     ]
   },
   {
@@ -277,8 +277,8 @@ const RESERVED_ENDPOINT_CHECKS: ReservedEndpointCheck[] = [
     methods: ['DELETE', 'PATCH'],
     tolerate501: false,
     specRefs: [
-      'https://wallet.storage/spec#space-level-reserved-endpoints',
-      'https://wallet.storage/spec#methods-at-reserved-endpoints'
+      'https://w3id.org/pws#space-level-reserved-endpoints',
+      'https://w3id.org/pws#methods-at-reserved-endpoints'
     ]
   },
   {
@@ -289,8 +289,8 @@ const RESERVED_ENDPOINT_CHECKS: ReservedEndpointCheck[] = [
     methods: ['GET'],
     tolerate501: true,
     specRefs: [
-      'https://wallet.storage/spec#space-level-reserved-endpoints',
-      'https://wallet.storage/spec#methods-at-reserved-endpoints'
+      'https://w3id.org/pws#space-level-reserved-endpoints',
+      'https://w3id.org/pws#methods-at-reserved-endpoints'
     ]
   },
   {
@@ -301,8 +301,8 @@ const RESERVED_ENDPOINT_CHECKS: ReservedEndpointCheck[] = [
     methods: ['GET'],
     tolerate501: true,
     specRefs: [
-      'https://wallet.storage/spec#space-level-reserved-endpoints',
-      'https://wallet.storage/spec#methods-at-reserved-endpoints'
+      'https://w3id.org/pws#space-level-reserved-endpoints',
+      'https://w3id.org/pws#methods-at-reserved-endpoints'
     ]
   },
   {
@@ -313,8 +313,8 @@ const RESERVED_ENDPOINT_CHECKS: ReservedEndpointCheck[] = [
     methods: ['DELETE'],
     tolerate501: true,
     specRefs: [
-      'https://wallet.storage/spec#space-linkset',
-      'https://wallet.storage/spec#methods-at-reserved-endpoints'
+      'https://w3id.org/pws#space-linkset',
+      'https://w3id.org/pws#methods-at-reserved-endpoints'
     ]
   },
   {
@@ -327,8 +327,8 @@ const RESERVED_ENDPOINT_CHECKS: ReservedEndpointCheck[] = [
     methods: ['GET', 'PUT', 'DELETE', 'PATCH'],
     tolerate501: false,
     specRefs: [
-      'https://wallet.storage/spec#space-level-reserved-endpoints',
-      'https://wallet.storage/spec#methods-at-reserved-endpoints'
+      'https://w3id.org/pws#space-level-reserved-endpoints',
+      'https://w3id.org/pws#methods-at-reserved-endpoints'
     ]
   },
   {
@@ -339,8 +339,8 @@ const RESERVED_ENDPOINT_CHECKS: ReservedEndpointCheck[] = [
     methods: ['PUT'],
     tolerate501: true,
     specRefs: [
-      'https://wallet.storage/spec#quotas',
-      'https://wallet.storage/spec#methods-at-reserved-endpoints'
+      'https://w3id.org/pws#quotas',
+      'https://w3id.org/pws#methods-at-reserved-endpoints'
     ]
   },
   // Collection-level reserved endpoints (spec "Collection-level reserved
@@ -353,8 +353,8 @@ const RESERVED_ENDPOINT_CHECKS: ReservedEndpointCheck[] = [
     methods: ['PATCH'],
     tolerate501: true,
     specRefs: [
-      'https://wallet.storage/spec#collection-level-reserved-endpoints',
-      'https://wallet.storage/spec#methods-at-reserved-endpoints'
+      'https://w3id.org/pws#collection-level-reserved-endpoints',
+      'https://w3id.org/pws#methods-at-reserved-endpoints'
     ]
   },
   {
@@ -365,8 +365,8 @@ const RESERVED_ENDPOINT_CHECKS: ReservedEndpointCheck[] = [
     methods: ['DELETE'],
     tolerate501: true,
     specRefs: [
-      'https://wallet.storage/spec#collection-backend-selected',
-      'https://wallet.storage/spec#methods-at-reserved-endpoints'
+      'https://w3id.org/pws#collection-backend-selected',
+      'https://w3id.org/pws#methods-at-reserved-endpoints'
     ]
   },
   {
@@ -377,8 +377,8 @@ const RESERVED_ENDPOINT_CHECKS: ReservedEndpointCheck[] = [
     methods: ['DELETE'],
     tolerate501: true,
     specRefs: [
-      'https://wallet.storage/spec#collection-linkset',
-      'https://wallet.storage/spec#methods-at-reserved-endpoints'
+      'https://w3id.org/pws#collection-linkset',
+      'https://w3id.org/pws#methods-at-reserved-endpoints'
     ]
   },
   {
@@ -389,9 +389,9 @@ const RESERVED_ENDPOINT_CHECKS: ReservedEndpointCheck[] = [
     methods: ['DELETE'],
     tolerate501: true,
     specRefs: [
-      'https://wallet.storage/spec#collection-metadata-data-model',
-      'https://wallet.storage/spec#collection-level-reserved-endpoints',
-      'https://wallet.storage/spec#methods-at-reserved-endpoints'
+      'https://w3id.org/pws#collection-metadata-data-model',
+      'https://w3id.org/pws#collection-level-reserved-endpoints',
+      'https://w3id.org/pws#methods-at-reserved-endpoints'
     ]
   },
   {
@@ -402,8 +402,8 @@ const RESERVED_ENDPOINT_CHECKS: ReservedEndpointCheck[] = [
     methods: ['DELETE'],
     tolerate501: true,
     specRefs: [
-      'https://wallet.storage/spec#collection-governing-history-log',
-      'https://wallet.storage/spec#methods-at-reserved-endpoints'
+      'https://w3id.org/pws#collection-governing-history-log',
+      'https://w3id.org/pws#methods-at-reserved-endpoints'
     ]
   },
   {
@@ -414,8 +414,8 @@ const RESERVED_ENDPOINT_CHECKS: ReservedEndpointCheck[] = [
     methods: ['GET'],
     tolerate501: true,
     specRefs: [
-      'https://wallet.storage/spec#query-profile-registry',
-      'https://wallet.storage/spec#methods-at-reserved-endpoints'
+      'https://w3id.org/pws#query-profile-registry',
+      'https://w3id.org/pws#methods-at-reserved-endpoints'
     ]
   },
   {
@@ -426,8 +426,8 @@ const RESERVED_ENDPOINT_CHECKS: ReservedEndpointCheck[] = [
     methods: ['PUT'],
     tolerate501: true,
     specRefs: [
-      'https://wallet.storage/spec#quotas',
-      'https://wallet.storage/spec#methods-at-reserved-endpoints'
+      'https://w3id.org/pws#quotas',
+      'https://w3id.org/pws#methods-at-reserved-endpoints'
     ]
   },
   // Resource-level reserved endpoints (spec "Resource-level reserved
@@ -440,9 +440,9 @@ const RESERVED_ENDPOINT_CHECKS: ReservedEndpointCheck[] = [
     methods: ['POST'],
     tolerate501: true,
     specRefs: [
-      'https://wallet.storage/spec#resource-metadata-data-model',
-      'https://wallet.storage/spec#resource-level-reserved-endpoints',
-      'https://wallet.storage/spec#methods-at-reserved-endpoints'
+      'https://w3id.org/pws#resource-metadata-data-model',
+      'https://w3id.org/pws#resource-level-reserved-endpoints',
+      'https://w3id.org/pws#methods-at-reserved-endpoints'
     ]
   },
   {
@@ -453,9 +453,9 @@ const RESERVED_ENDPOINT_CHECKS: ReservedEndpointCheck[] = [
     methods: ['DELETE'],
     tolerate501: true,
     specRefs: [
-      'https://wallet.storage/spec#chunked-resources',
-      'https://wallet.storage/spec#resource-level-reserved-endpoints',
-      'https://wallet.storage/spec#methods-at-reserved-endpoints'
+      'https://w3id.org/pws/encrypted-collections#chunked-resources',
+      'https://w3id.org/pws#resource-level-reserved-endpoints',
+      'https://w3id.org/pws#methods-at-reserved-endpoints'
     ]
   }
 ]
@@ -490,8 +490,8 @@ export const reservedMethodsApi: Suite<State> = {
   id: 'reserved-methods-api',
   name: 'Methods at reserved endpoints (405)',
   specRefs: [
-    'https://wallet.storage/spec#reserved-path-segment-registry',
-    'https://wallet.storage/spec#methods-at-reserved-endpoints'
+    'https://w3id.org/pws#reserved-path-segment-registry',
+    'https://w3id.org/pws#methods-at-reserved-endpoints'
   ],
 
   setup: async ctx => {
@@ -533,8 +533,8 @@ export const reservedMethodsApi: Suite<State> = {
       id: 'reserved-methods.space-container-put',
       name: '[root] PUT /space/:s/ is refused (405), Allow excludes PUT',
       specRefs: [
-        'https://wallet.storage/spec#space-metadata-data-model',
-        'https://wallet.storage/spec#methods-at-reserved-endpoints'
+        'https://w3id.org/pws#space-metadata-data-model',
+        'https://w3id.org/pws#methods-at-reserved-endpoints'
       ],
       run: async (ctx, state) => {
         const { alice } = state
@@ -553,8 +553,8 @@ export const reservedMethodsApi: Suite<State> = {
       id: 'reserved-methods.collection-container-put',
       name: '[root] PUT /space/:s/:c/ is refused (405), Allow excludes PUT',
       specRefs: [
-        'https://wallet.storage/spec#collection-metadata-data-model',
-        'https://wallet.storage/spec#methods-at-reserved-endpoints'
+        'https://w3id.org/pws#collection-metadata-data-model',
+        'https://w3id.org/pws#methods-at-reserved-endpoints'
       ],
       run: async (ctx, state) => {
         const { alice, collectionId } = state
@@ -573,8 +573,8 @@ export const reservedMethodsApi: Suite<State> = {
       id: 'reserved-methods.identical-for-absent-space',
       name: '[root] the 405 refusal is identical whether the Space exists',
       specRefs: [
-        'https://wallet.storage/spec#methods-at-reserved-endpoints',
-        'https://wallet.storage/spec#error-handling'
+        'https://w3id.org/pws#methods-at-reserved-endpoints',
+        'https://w3id.org/pws#error-handling'
       ],
       run: async (ctx, state) => {
         const { alice } = state
@@ -604,8 +604,8 @@ export const reservedMethodsApi: Suite<State> = {
         'endpoint',
       optional: true,
       specRefs: [
-        'https://wallet.storage/spec#methods-at-reserved-endpoints',
-        'https://wallet.storage/spec#space-linkset'
+        'https://w3id.org/pws#methods-at-reserved-endpoints',
+        'https://w3id.org/pws#space-linkset'
       ],
       run: async (ctx, state) => {
         const { alice } = state
@@ -644,7 +644,7 @@ export const reservedMethodsApi: Suite<State> = {
         '[root] an OPTIONS CORS preflight at a reserved endpoint is not ' +
         'refused',
       optional: true,
-      specRefs: ['https://wallet.storage/spec#methods-at-reserved-endpoints'],
+      specRefs: ['https://w3id.org/pws#methods-at-reserved-endpoints'],
       run: async (ctx, state) => {
         const { alice } = state
         const url = new URL(

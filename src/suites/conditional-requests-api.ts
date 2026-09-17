@@ -5,13 +5,12 @@
  * WAS conformance tests -- conditional requests & caching (spec "Caching" and
  * "Conditional Requests").
  *
- * Conditional writes are an OPTIONAL feature: a backend advertises the
- * `conditional-writes` token in its Backend description, and only then are the
- * 412 semantics required (MUST). This suite is therefore not marked
- * suite-level optional. Its `setup` probes the Space's default backend for the
- * token and stashes the result; the write tests call `ctx.skip(...)` when the
- * backend does not advertise it, while the two ETag tests reflect the weaker
- * `SHOULD emit ETag` guidance and are marked `optional: true`.
+ * Conditional writes are a baseline requirement of every backend a Collection
+ * may be created on, so the 412 semantics below are MUST-level and run
+ * unconditionally. No token gates them: the server, not the storage engine,
+ * serializes each write and mints the validator, so a backend cannot opt out of
+ * the guarantee. The two ETag tests reflect the weaker `SHOULD emit ETag`
+ * guidance and are marked `optional: true`.
  *
  * Most tests work at the Resource level in a plain JSON Collection; the
  * "Collection Metadata object" and "Space Metadata object" groups cover the
@@ -31,8 +30,6 @@ interface State {
   alice: any
   bob: any
   collectionUrl: string
-  conditionalWritesSupported: boolean
-  defaultBackend: any
 }
 
 /**
@@ -50,7 +47,7 @@ function assertPreconditionFailed(expectedError: any): void {
   )
   assert.equal(
     expectedError.data.type,
-    'https://wallet.storage/spec#precondition-failed'
+    'https://w3id.org/pws#precondition-failed'
   )
 }
 
@@ -69,7 +66,7 @@ function assertNotFoundMask(expectedError: any): void {
     expectedError.response.headers.get('content-type'),
     /application\/problem\+json/
   )
-  assert.equal(expectedError.data.type, 'https://wallet.storage/spec#not-found')
+  assert.equal(expectedError.data.type, 'https://w3id.org/pws#not-found')
 }
 
 /**
@@ -117,8 +114,8 @@ export const conditionalRequestsApi: Suite<State> = {
   id: 'conditional-requests-api',
   name: 'Conditional requests & caching',
   specRefs: [
-    'https://wallet.storage/spec#caching',
-    'https://wallet.storage/spec#conditional-requests'
+    'https://w3id.org/pws#caching',
+    'https://w3id.org/pws#conditional-requests'
   ],
 
   setup: async ctx => {
@@ -145,29 +142,7 @@ export const conditionalRequestsApi: Suite<State> = {
       ctx.serverUrl
     ).toString()
 
-    // Probe the Space's default backend for the `conditional-writes` feature
-    // token. The write tests below skip when it is absent (the feature is
-    // OPTIONAL); the 412 semantics are only required once advertised.
-    const backendsResponse = await alice.rootClient.request({
-      url: new URL(
-        `/space/${alice.space1.id}/backends`,
-        ctx.serverUrl
-      ).toString(),
-      method: 'GET'
-    })
-    const backends: any[] = backendsResponse.data
-    const defaultBackend = backends.find(backend => backend.id === 'default')
-    const conditionalWritesSupported = Boolean(
-      defaultBackend?.features?.includes('conditional-writes')
-    )
-
-    return {
-      alice,
-      bob,
-      collectionUrl,
-      conditionalWritesSupported,
-      defaultBackend
-    }
+    return { alice, bob, collectionUrl }
   },
 
   teardown: async (ctx, state) => {
@@ -184,41 +159,16 @@ export const conditionalRequestsApi: Suite<State> = {
 
   tests: [
     {
-      id: 'conditional.backend-advertises-conditional-writes',
-      name:
-        '[root] the default backend descriptor advertises the ' +
-        '`conditional-writes` feature',
-      specRefs: [
-        'https://wallet.storage/spec#conditional-requests',
-        'https://wallet.storage/spec#backend-data-model'
-      ],
-      run: async (ctx, state) => {
-        const { defaultBackend } = state
-        assert.ok(defaultBackend, 'expected a `default` backend descriptor')
-        assert.ok(
-          Array.isArray(defaultBackend.features),
-          'expected the backend descriptor to carry a `features` array'
-        )
-        assert.ok(
-          defaultBackend.features.includes('conditional-writes'),
-          'expected `features` to include the `conditional-writes` token'
-        )
-      }
-    },
-    {
       id: 'conditional.stale-if-match-412',
       name:
         '[root] a PUT with a stale `If-Match` performs no write and returns ' +
         '412 precondition-failed',
       specRefs: [
-        'https://wallet.storage/spec#conditional-requests',
-        'https://wallet.storage/spec#precondition-failed'
+        'https://w3id.org/pws#conditional-requests',
+        'https://w3id.org/pws#precondition-failed'
       ],
       run: async (ctx, state) => {
-        const { alice, collectionUrl, conditionalWritesSupported } = state
-        if (!conditionalWritesSupported) {
-          ctx.skip('backend does not advertise conditional-writes')
-        }
+        const { alice, collectionUrl } = state
         const resourceUrl = `${collectionUrl}stale-if-match`
 
         // Create (version 1) then update (version 2): the ETag the client
@@ -270,14 +220,11 @@ export const conditionalRequestsApi: Suite<State> = {
         '[root] a PUT with `If-None-Match: *` against an existing Resource ' +
         'returns 412 and does not overwrite',
       specRefs: [
-        'https://wallet.storage/spec#conditional-requests',
-        'https://wallet.storage/spec#precondition-failed'
+        'https://w3id.org/pws#conditional-requests',
+        'https://w3id.org/pws#precondition-failed'
       ],
       run: async (ctx, state) => {
-        const { alice, collectionUrl, conditionalWritesSupported } = state
-        if (!conditionalWritesSupported) {
-          ctx.skip('backend does not advertise conditional-writes')
-        }
+        const { alice, collectionUrl } = state
         const resourceUrl = `${collectionUrl}if-none-match-existing`
 
         await alice.rootClient.request({
@@ -316,12 +263,9 @@ export const conditionalRequestsApi: Suite<State> = {
       name:
         '[root] a PUT with the current `If-Match` succeeds and advances the ' +
         'ETag',
-      specRefs: ['https://wallet.storage/spec#conditional-requests'],
+      specRefs: ['https://w3id.org/pws#conditional-requests'],
       run: async (ctx, state) => {
-        const { alice, collectionUrl, conditionalWritesSupported } = state
-        if (!conditionalWritesSupported) {
-          ctx.skip('backend does not advertise conditional-writes')
-        }
+        const { alice, collectionUrl } = state
         const resourceUrl = `${collectionUrl}current-if-match`
 
         const created = await alice.rootClient.request({
@@ -361,12 +305,9 @@ export const conditionalRequestsApi: Suite<State> = {
       name:
         '[root] a PUT with `If-None-Match: *` on a fresh id creates the ' +
         'Resource',
-      specRefs: ['https://wallet.storage/spec#conditional-requests'],
+      specRefs: ['https://w3id.org/pws#conditional-requests'],
       run: async (ctx, state) => {
-        const { alice, collectionUrl, conditionalWritesSupported } = state
-        if (!conditionalWritesSupported) {
-          ctx.skip('backend does not advertise conditional-writes')
-        }
+        const { alice, collectionUrl } = state
         const resourceUrl = `${collectionUrl}if-none-match-create`
 
         // create-if-absent on an absent id proceeds.
@@ -398,15 +339,12 @@ export const conditionalRequestsApi: Suite<State> = {
         '[root] an under-authorized conditional PUT yields the 404 mask, ' +
         'never 412',
       specRefs: [
-        'https://wallet.storage/spec#conditional-requests',
-        'https://wallet.storage/spec#error-handling',
-        'https://wallet.storage/spec#not-found'
+        'https://w3id.org/pws#conditional-requests',
+        'https://w3id.org/pws#error-handling',
+        'https://w3id.org/pws#not-found'
       ],
       run: async (ctx, state) => {
-        const { alice, bob, collectionUrl, conditionalWritesSupported } = state
-        if (!conditionalWritesSupported) {
-          ctx.skip('backend does not advertise conditional-writes')
-        }
+        const { alice, bob, collectionUrl } = state
         const resourceUrl = `${collectionUrl}authz-before-precondition`
 
         // Alice owns an existing Resource.
@@ -451,8 +389,8 @@ export const conditionalRequestsApi: Suite<State> = {
         'content changes',
       optional: true,
       specRefs: [
-        'https://wallet.storage/spec#caching',
-        'https://wallet.storage/spec#conditional-requests'
+        'https://w3id.org/pws#caching',
+        'https://w3id.org/pws#conditional-requests'
       ],
       run: async (ctx, state) => {
         const { alice, collectionUrl } = state
@@ -495,8 +433,8 @@ export const conditionalRequestsApi: Suite<State> = {
         'content changes',
       optional: true,
       specRefs: [
-        'https://wallet.storage/spec#caching',
-        'https://wallet.storage/spec#conditional-requests'
+        'https://w3id.org/pws#caching',
+        'https://w3id.org/pws#conditional-requests'
       ],
       run: async (ctx, state) => {
         const { alice, collectionUrl } = state
@@ -541,7 +479,7 @@ export const conditionalRequestsApi: Suite<State> = {
         '[root] GET with an If-None-Match matching the current ETag is 304 ' +
         'Not Modified with the ETag and no body; a stale validator is 200',
       optional: true,
-      specRefs: ['https://wallet.storage/spec#caching'],
+      specRefs: ['https://w3id.org/pws#caching'],
       run: async (ctx, state) => {
         const { alice, collectionUrl } = state
         const resourceUrl = `${collectionUrl}get-304`
@@ -596,7 +534,7 @@ export const conditionalRequestsApi: Suite<State> = {
       id: 'conditional.head-if-none-match-304',
       name: '[root] HEAD with an If-None-Match matching the current ETag is 304',
       optional: true,
-      specRefs: ['https://wallet.storage/spec#caching'],
+      specRefs: ['https://w3id.org/pws#caching'],
       run: async (ctx, state) => {
         const { alice, collectionUrl } = state
         const resourceUrl = `${collectionUrl}head-304`
@@ -632,7 +570,7 @@ export const conditionalRequestsApi: Suite<State> = {
         '[root] If-None-Match uses weak comparison: a W/ validator, a list ' +
         'containing the ETag, and `*` are all 304',
       optional: true,
-      specRefs: ['https://wallet.storage/spec#caching'],
+      specRefs: ['https://w3id.org/pws#caching'],
       run: async (ctx, state) => {
         const { alice, collectionUrl } = state
         const resourceUrl = `${collectionUrl}get-304-forms`
@@ -674,8 +612,8 @@ export const conditionalRequestsApi: Suite<State> = {
         'a 304 that would confirm the Resource exists',
       optional: true,
       specRefs: [
-        'https://wallet.storage/spec#caching',
-        'https://wallet.storage/spec#not-found'
+        'https://w3id.org/pws#caching',
+        'https://w3id.org/pws#not-found'
       ],
       run: async (ctx, state) => {
         const { alice, bob, collectionUrl } = state
@@ -711,15 +649,12 @@ export const conditionalRequestsApi: Suite<State> = {
         'Collection and 412s on a present one',
       group: 'Collection Metadata object',
       specRefs: [
-        'https://wallet.storage/spec#conditional-requests',
-        'https://wallet.storage/spec#update-or-create-by-id-collection-operation',
-        'https://wallet.storage/spec#precondition-failed'
+        'https://w3id.org/pws#conditional-requests',
+        'https://w3id.org/pws#update-or-create-by-id-collection-operation',
+        'https://w3id.org/pws#precondition-failed'
       ],
       run: async (ctx, state) => {
-        const { alice, conditionalWritesSupported } = state
-        if (!conditionalWritesSupported) {
-          ctx.skip('backend does not advertise conditional-writes')
-        }
+        const { alice } = state
         const metaUrl = new URL(
           `/space/${alice.space1.id}/guarded-collection/meta`,
           ctx.serverUrl
@@ -783,15 +718,12 @@ export const conditionalRequestsApi: Suite<State> = {
         'annotation write',
       group: 'Collection Metadata object',
       specRefs: [
-        'https://wallet.storage/spec#conditional-requests',
-        'https://wallet.storage/spec#collection-metadata-versioning',
-        'https://wallet.storage/spec#precondition-failed'
+        'https://w3id.org/pws#conditional-requests',
+        'https://w3id.org/pws#collection-metadata-versioning',
+        'https://w3id.org/pws#precondition-failed'
       ],
       run: async (ctx, state) => {
-        const { alice, conditionalWritesSupported } = state
-        if (!conditionalWritesSupported) {
-          ctx.skip('backend does not advertise conditional-writes')
-        }
+        const { alice } = state
         const collectionId = ctx.generateId()
 
         // The Collection's Metadata object comes into being with the
@@ -839,8 +771,8 @@ export const conditionalRequestsApi: Suite<State> = {
       group: 'Collection Metadata object',
       optional: true,
       specRefs: [
-        'https://wallet.storage/spec#caching',
-        'https://wallet.storage/spec#read-collection-metadata-operation'
+        'https://w3id.org/pws#caching',
+        'https://w3id.org/pws#read-collection-metadata-operation'
       ],
       run: async (ctx, state) => {
         const { alice } = state
@@ -888,8 +820,8 @@ export const conditionalRequestsApi: Suite<State> = {
       group: 'Space Metadata object',
       optional: true,
       specRefs: [
-        'https://wallet.storage/spec#caching',
-        'https://wallet.storage/spec#read-space-operation'
+        'https://w3id.org/pws#caching',
+        'https://w3id.org/pws#read-space-operation'
       ],
       run: async (ctx, state) => {
         const { alice } = state
@@ -930,15 +862,12 @@ export const conditionalRequestsApi: Suite<State> = {
         'and 412s on a present one',
       group: 'Space Metadata object',
       specRefs: [
-        'https://wallet.storage/spec#conditional-requests',
-        'https://wallet.storage/spec#update-or-create-by-id-space-operation',
-        'https://wallet.storage/spec#precondition-failed'
+        'https://w3id.org/pws#conditional-requests',
+        'https://w3id.org/pws#update-or-create-by-id-space-operation',
+        'https://w3id.org/pws#precondition-failed'
       ],
       run: async (ctx, state) => {
-        const { alice, conditionalWritesSupported } = state
-        if (!conditionalWritesSupported) {
-          ctx.skip('backend does not advertise conditional-writes')
-        }
+        const { alice } = state
         const spaceId = ctx.generateId()
         const spaceUrl = new URL(`/space/${spaceId}/`, ctx.serverUrl).toString()
         const metaUrl = `${spaceUrl}meta`
@@ -998,15 +927,12 @@ export const conditionalRequestsApi: Suite<State> = {
         'succeeds and an unconditional PUT still replaces',
       group: 'Space Metadata object',
       specRefs: [
-        'https://wallet.storage/spec#conditional-requests',
-        'https://wallet.storage/spec#update-or-create-by-id-space-operation',
-        'https://wallet.storage/spec#precondition-failed'
+        'https://w3id.org/pws#conditional-requests',
+        'https://w3id.org/pws#update-or-create-by-id-space-operation',
+        'https://w3id.org/pws#precondition-failed'
       ],
       run: async (ctx, state) => {
-        const { alice, conditionalWritesSupported } = state
-        if (!conditionalWritesSupported) {
-          ctx.skip('backend does not advertise conditional-writes')
-        }
+        const { alice } = state
         const spaceId = ctx.generateId()
         const spaceUrl = new URL(`/space/${spaceId}/`, ctx.serverUrl).toString()
         const metaUrl = `${spaceUrl}meta`
@@ -1095,7 +1021,7 @@ export const conditionalRequestsApi: Suite<State> = {
         '[root] the response to a POST (non-idempotent) is marked ' +
         'non-cacheable with Cache-Control: no-store',
       optional: true,
-      specRefs: ['https://wallet.storage/spec#caching'],
+      specRefs: ['https://w3id.org/pws#caching'],
       run: async (ctx, state) => {
         const { alice, collectionUrl } = state
         const response = await alice.rootClient.request({
