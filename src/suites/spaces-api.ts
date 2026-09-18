@@ -1305,11 +1305,13 @@ export const spacesApi: Suite<State> = {
           rootClient: alice.rootClient
         })
         try {
-          // POST the same id again with a different name and controller. The
-          // existence check precedes any provisioning concern, so this is a 409
-          // id-conflict; create-or-replace by id is PUT's job. The token path
-          // of createSpace() returns the status; the zcap path throws on
-          // non-2xx -- capture either shape.
+          // POST the same id again as Bob, proposing himself as controller and
+          // signing for that consent -- so the invocation clears
+          // controller-mismatch and the existence check, which now runs only
+          // after that consent check, is what is under test. Create-or-replace
+          // by id is PUT's job, so a consenting create at a taken id is still a
+          // 409 id-conflict; the token path of createSpace() returns the
+          // status; the zcap path throws on non-2xx -- capture either shape.
           let status: number | undefined, problem: any
           try {
             const response = await createSpace({
@@ -1318,7 +1320,7 @@ export const spacesApi: Suite<State> = {
                 name: 'Usurping Space',
                 controller: bob.did
               },
-              rootClient: alice.rootClient
+              rootClient: bob.rootClient
             })
             status = response.status
             problem = response.data
@@ -1330,7 +1332,7 @@ export const spacesApi: Suite<State> = {
           assert.equal(problem.type, 'https://w3id.org/pws#id-conflict')
 
           // The original Space is untouched: its name and controller are as
-          // first created, not the conflicting POST's proposed values.
+          // first created, not Bob's usurping proposal.
           const checkResponse = await alice.rootClient.request({
             url: spaceMetaUrl(serverUrl, spaceId),
             method: 'GET',

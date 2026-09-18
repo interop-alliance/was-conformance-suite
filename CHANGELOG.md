@@ -1,5 +1,16 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.22.0 - TBD
+
+### Changed
+
+- `space.create-post-conflict-preserves-original` now signs the conflicting
+  `POST /spaces/` as Bob consenting for himself (`controller: bob.did`),
+  instead of Alice proposing a different controller. Existence checking now
+  runs after body-controller consent verification, so a non-consenting POST at
+  an existing id gets `controller-mismatch` (400) rather than `id-conflict`
+  (409); this case must consent to exercise the id-conflict path at all.
+
 ## 0.21.0 - 2026-09-16
 
 ### Changed
