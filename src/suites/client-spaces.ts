@@ -135,7 +135,7 @@ export const clientSpaces: Suite<State> = {
         const { newSpace } = state
         const space = await newSpace('Original')
         const updated = await space.configure({ name: 'Renamed' })
-        assert.equal(updated.name, 'Renamed')
+        assert.equal(updated.description.name, 'Renamed')
         const reread = await space.describe()
         assert.equal(reread?.name, 'Renamed')
       }
