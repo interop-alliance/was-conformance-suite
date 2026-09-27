@@ -10,6 +10,8 @@ import { Ed25519VerificationKey } from '@interop/ed25519-verification-key'
 import type { ISigner } from '@interop/data-integrity-core'
 import { v4 as uuidv4 } from 'uuid'
 
+import assert from './harness/assert.js'
+import { serviceFeatures } from './harness/serviceDescription.js'
 import type { Actors, ConformanceContext } from './harness/types.js'
 
 /**
@@ -224,6 +226,43 @@ export function withoutCreatedBy(value: unknown): unknown {
     return rest
   }
   return value
+}
+
+/**
+ * Checks the server-derived `backends` member of a Space Metadata object and
+ * returns the object without it, for an exact-shape comparison of the rest.
+ * The member is OPTIONAL (spec "Space Metadata Data Model"). A server that
+ * advertises the `backends` feature carries the same listing
+ * `GET /space/{space_id}/backends` serves. A server that does not omits it.
+ *
+ * @param options {object}
+ * @param options.serverUrl {string}
+ * @param options.metadata {unknown}   the Space Metadata object as served
+ * @param options.readListing {Function}   reads the Space's backends listing
+ * @returns {Promise<unknown>}
+ */
+export async function checkBackendsMember({
+  serverUrl,
+  metadata,
+  readListing
+}: {
+  serverUrl: string
+  metadata: unknown
+  readListing: () => Promise<unknown>
+}): Promise<unknown> {
+  assert.ok(metadata && typeof metadata === 'object')
+  const { backends, ...rest } = metadata as Record<string, unknown>
+  const features = await serviceFeatures({ serverUrl })
+  if (!features.includes('backends')) {
+    assert.ok(
+      !('backends' in metadata),
+      'a server without the backends feature omits `backends`'
+    )
+    return rest
+  }
+  assert.ok(Array.isArray(backends), '`backends` must be an array')
+  assert.deepStrictEqual(backends, await readListing())
+  return rest
 }
 
 /**

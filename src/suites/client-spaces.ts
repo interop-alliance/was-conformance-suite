@@ -11,6 +11,7 @@
  */
 import assert from '../harness/assert.js'
 import type { Suite } from '../harness/types.js'
+import { checkBackendsMember } from '../helpers.js'
 
 import { NotFoundError } from '@interop/was-client'
 import type { Space } from '@interop/was-client'
@@ -85,13 +86,18 @@ export const clientSpaces: Suite<State> = {
         'https://w3id.org/pws#read-space-operation'
       ],
       run: async (ctx, state) => {
-        const { withoutCreatedBy } = ctx
+        const { serverUrl, withoutCreatedBy } = ctx
         const { alice, newSpace } = state
         const space = await newSpace('Home')
         const description = await space.describe()
+        const rest = await checkBackendsMember({
+          serverUrl,
+          metadata: description,
+          readListing: () => space.backends()
+        })
         // A Space is a container, so its `url` carries the canonical
         // trailing slash (spec "Space Metadata Data Model").
-        assert.deepStrictEqual(withoutCreatedBy(description), {
+        assert.deepStrictEqual(withoutCreatedBy(rest), {
           id: space.id,
           type: ['Space'],
           name: 'Home',

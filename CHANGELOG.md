@@ -1,5 +1,17 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.23.0 - TBD
+
+### Changed
+
+- `spaces.create-and-read`, `space.create-post`, `space.read-authorized` and
+  `space.read-delegated` check the Space Metadata object's `backends` member. On
+  a server that advertises the `backends` feature, it must equal the
+  `GET /space/{space_id}/backends` listing. On one that does not, it must be
+  absent.
+- `space.create-post` expects `linkset` in the create echo, as Read Space
+  already did.
+
 ## 0.22.1 - 2026-09-25
 
 ### Changed

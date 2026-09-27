@@ -6,6 +6,7 @@
  */
 import assert from '../harness/assert.js'
 import type { ConformanceContext, Suite } from '../harness/types.js'
+import { checkBackendsMember } from '../helpers.js'
 
 interface State {
   alice: any
@@ -142,6 +143,34 @@ function spaceUrl(serverUrl: string, spaceId: string): string {
  */
 function spaceMetaUrl(serverUrl: string, spaceId: string): string {
   return new URL(`/space/${spaceId}/meta`, serverUrl).toString()
+}
+
+/**
+ * Reads a Space's backends listing (spec "Space Backends Available") as its
+ * controller, for comparison with the Metadata object's `backends` member.
+ *
+ * @param options {object}
+ * @param options.serverUrl {string}
+ * @param options.spaceId {string}
+ * @param options.rootClient {ZcapClient}   the Space controller's client
+ * @returns {Promise<unknown>}
+ */
+async function readBackendsListing({
+  serverUrl,
+  spaceId,
+  rootClient
+}: {
+  serverUrl: string
+  spaceId: string
+  rootClient: any
+}): Promise<unknown> {
+  const response = await rootClient.request({
+    url: new URL(`/space/${spaceId}/backends`, serverUrl).toString(),
+    method: 'GET',
+    action: 'GET'
+  })
+  assert.equal(response.status, 200)
+  return response.data
 }
 
 /**
@@ -791,14 +820,25 @@ export const spacesApi: Suite<State> = {
           rootClient: alice.rootClient
         })
         assert.equal(response.status, 201)
+        const rest = await checkBackendsMember({
+          serverUrl,
+          metadata: response.data,
+          readListing: () =>
+            readBackendsListing({
+              serverUrl,
+              spaceId: freshSpaceId,
+              rootClient: alice.rootClient
+            })
+        })
         // The container `url` is the canonical trailing-slash form (spec
         // "Space Metadata Data Model").
-        assert.deepStrictEqual(withoutCreatedBy(response.data), {
+        assert.deepStrictEqual(withoutCreatedBy(rest), {
           id: freshSpaceId,
           name: 'Conformance Test Space',
           type: ['Space'],
           controller: alice.did,
-          url: `/space/${freshSpaceId}/`
+          url: `/space/${freshSpaceId}/`,
+          linkset: `/space/${freshSpaceId}/linkset`
         })
         assert.match(response.headers.get('content-type')!, /application\/json/)
         assert.equal(
@@ -1166,7 +1206,17 @@ export const spacesApi: Suite<State> = {
         })
         assert.equal(response.status, 200)
         assert.match(response.headers.get('content-type'), /application\/json/)
-        assert.deepStrictEqual(withoutCreatedBy(response.data), {
+        const rest = await checkBackendsMember({
+          serverUrl,
+          metadata: response.data,
+          readListing: () =>
+            readBackendsListing({
+              serverUrl,
+              spaceId: alice.space1.id,
+              rootClient: alice.rootClient
+            })
+        })
+        assert.deepStrictEqual(withoutCreatedBy(rest), {
           id: alice.space1.id,
           name: "Alice's Space #1 (Home)",
           type: ['Space'],
@@ -1209,7 +1259,17 @@ export const spacesApi: Suite<State> = {
           appResponse.headers.get('content-type')!,
           /application\/json/
         )
-        assert.deepStrictEqual(withoutCreatedBy(appResponse.data), {
+        const rest = await checkBackendsMember({
+          serverUrl,
+          metadata: appResponse.data,
+          readListing: () =>
+            readBackendsListing({
+              serverUrl,
+              spaceId: alice.space1.id,
+              rootClient: alice.rootClient
+            })
+        })
+        assert.deepStrictEqual(withoutCreatedBy(rest), {
           id: alice.space1.id,
           name: "Alice's Space #1 (Home)",
           type: ['Space'],
