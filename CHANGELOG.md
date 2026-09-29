@@ -1,6 +1,6 @@
 # @interop/was-conformance-suite Changelog
 
-## 0.24.0 - TBD
+## 0.24.0 - 2026-09-28
 
 ### Added
 
