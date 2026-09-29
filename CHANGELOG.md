@@ -1,5 +1,18 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.24.0 - TBD
+
+### Added
+
+- `writer-attribution-api` suite: conformance checks for the `writerId`
+  writer-attribution surface -- declare-or-clear on a content write (`PUT` /
+  `POST`) and on `DELETE`, propagation to the Resource Metadata object, the
+  Collection listing item summary, and the changes feed (including tombstones),
+  the top-level `writerId` member of Update Resource Metadata, and rejection of
+  an empty or non-string value with `invalid-request-body`. Gated behind the
+  `metadata` service-description feature, matching how the other Resource
+  Metadata checks are gated.
+
 ## 0.23.0 - 2026-09-27
 
 ### Changed

@@ -29,6 +29,7 @@ import { serviceDescriptionApi } from './service-description-api.js'
 import { server } from './server.js'
 import { spacesApi } from './spaces-api.js'
 import { writeValidationApi } from './write-validation-api.js'
+import { writerAttributionApi } from './writer-attribution-api.js'
 
 /**
  * The full conformance registry, in canonical run order (matching the
@@ -60,7 +61,8 @@ export const suites: Array<Suite<any>> = [
   serviceDescriptionApi,
   server,
   spacesApi,
-  writeValidationApi
+  writeValidationApi,
+  writerAttributionApi
 ]
 
 export {
@@ -89,5 +91,6 @@ export {
   serviceDescriptionApi,
   server,
   spacesApi,
-  writeValidationApi
+  writeValidationApi,
+  writerAttributionApi
 }

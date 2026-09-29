@@ -148,6 +148,7 @@ The available suite ids (for `--suite`) are:
 | `server`                    | Server                                                  |
 | `spaces-api`                | Spaces                                                  |
 | `write-validation-api`      | Write-validation negatives (reserved ids, Content-Type) |
+| `writer-attribution-api`    | Writer attribution (`writerId`)                         |
 
 #### Environment-variable fallbacks
 
