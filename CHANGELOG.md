@@ -1,5 +1,18 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.25.0 - TBD
+
+### Changed
+
+- With an onboarding token configured, `space.create-put`,
+  `conditional.space-if-none-match-create-then-412`, and
+  `conditional.space-if-match-cas` create their Space by an unsigned `PUT` of
+  its Space Metadata object carrying `Authorization: Bearer <token>`, since a
+  server that gates provisioning gates Create Space by Id too.
+  `space.create-put-controller-mismatch-400` skips under a token, as its
+  `POST /spaces/` counterpart does. The context gains a `createSpaceByPut`
+  helper for this.
+
 ## 0.24.0 - 2026-09-28
 
 ### Added

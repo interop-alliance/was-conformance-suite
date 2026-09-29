@@ -28,6 +28,7 @@ function fakeContext(
     onboardingToken: null,
     actors: {} as any,
     createSpace: notCalled('createSpace') as any,
+    createSpaceByPut: notCalled('createSpaceByPut') as any,
     provisionSpace: notCalled('provisionSpace') as any,
     wasClient: notCalled('wasClient') as any,
     zcapClient: notCalled('zcapClient') as any,

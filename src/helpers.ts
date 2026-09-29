@@ -164,6 +164,69 @@ export async function createSpace({
 }
 
 /**
+ * Creates a Space by id with a `PUT` of its Space Metadata object (spec
+ * "Update (or Create by Id) Space Operation"). With an onboarding token
+ * configured, the `PUT` is unsigned and carries `Authorization: Bearer`, since
+ * a server that gates provisioning gates this create path too. Otherwise it is
+ * a root invocation signed by `rootClient`, which throws on a non-2xx status.
+ * Returns a normalized response object, as `createSpace` does.
+ *
+ * @param options {object}
+ * @param options.serverUrl {string}
+ * @param options.onboardingToken {string|null}
+ * @param options.spaceId {string}
+ * @param options.spaceDescription {object}
+ * @param options.rootClient {ZcapClient} ZCap client -- used when no onboarding
+ *   token is set
+ * @param [options.headers] {Record<string, string>} extra request headers,
+ *   e.g. a precondition
+ * @returns {Promise<{status: number, headers: Headers, data: any}>}
+ */
+export async function createSpaceByPut({
+  serverUrl,
+  onboardingToken,
+  spaceId,
+  spaceDescription,
+  rootClient,
+  headers = {}
+}: {
+  serverUrl: string
+  onboardingToken: string | null
+  spaceId: string
+  spaceDescription: object
+  rootClient: ZcapClient
+  headers?: Record<string, string>
+}): Promise<{ status: number; headers: Headers; data: any }> {
+  const metaUrl = new URL(`/space/${spaceId}/meta`, serverUrl).toString()
+  if (onboardingToken) {
+    const response = await fetch(metaUrl, {
+      method: 'PUT',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${onboardingToken}`
+      },
+      body: JSON.stringify(spaceDescription)
+    })
+    const text = await response.text()
+    const data = text ? JSON.parse(text) : undefined
+    return { status: response.status, headers: response.headers, data }
+  }
+  const response = await rootClient.request({
+    url: metaUrl,
+    method: 'PUT',
+    action: 'PUT',
+    json: spaceDescription,
+    headers
+  })
+  return {
+    status: response.status,
+    headers: response.headers,
+    data: response.data
+  }
+}
+
+/**
  * Provisions a Space for the high-level `WasClient` suites: with an onboarding
  * token configured, creates it via the token path (a plain fetch with
  * `Authorization: Bearer`, the same wire form `createSpace` above uses) and
@@ -288,6 +351,15 @@ export async function createContext({
     actors,
     createSpace: ({ spaceDescription, rootClient }) =>
       createSpace({ serverUrl, onboardingToken, spaceDescription, rootClient }),
+    createSpaceByPut: ({ spaceId, spaceDescription, rootClient, headers }) =>
+      createSpaceByPut({
+        serverUrl,
+        onboardingToken,
+        spaceId,
+        spaceDescription,
+        rootClient,
+        ...(headers && { headers })
+      }),
     provisionSpace: ({ was, name }) =>
       provisionSpace({ serverUrl, onboardingToken, was, name }),
     wasClient: ({ signer }) => wasClient({ serverUrl, signer }),

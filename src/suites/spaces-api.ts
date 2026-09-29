@@ -899,12 +899,15 @@ export const spacesApi: Suite<State> = {
         }
         // The `Location` names the Space container, not the Metadata object
         // that was written (spec "Update (or Create by Id) Space Operation").
-        const response = await alice.rootClient.request({
-          url: spaceMetaUrl(serverUrl, alice.space2.id),
-          method: 'PUT',
-          json: spaceDescription
+        // A server that gates provisioning gates this create too, so it
+        // carries the onboarding token when one is configured.
+        const response = await ctx.createSpaceByPut({
+          spaceId: alice.space2.id,
+          spaceDescription,
+          rootClient: alice.rootClient
         })
 
+        assert.equal(response.status, 201)
         assert.equal(
           response.headers.get('location'),
           spaceUrl(serverUrl, alice.space2.id)
@@ -1473,6 +1476,14 @@ export const spacesApi: Suite<State> = {
       run: async (ctx, state) => {
         const { serverUrl, generateId } = ctx
         const { alice, bob } = state
+        if (ctx.onboardingToken) {
+          // With an onboarding token configured, the token itself vouches for
+          // provisioning by PUT as well, so the signer-vs-body consent check
+          // under test here is legitimately skipped.
+          ctx.skip(
+            'onboarding token configured: token vouches for provisioning'
+          )
+        }
         // The create branch of PUT is authorized by the *body's* controller,
         // just like Create Space via POST. Bob signs a PUT that would create a
         // new Space naming Alice as controller, with no delegation chain rooted

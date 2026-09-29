@@ -872,16 +872,22 @@ export const conditionalRequestsApi: Suite<State> = {
         const spaceUrl = new URL(`/space/${spaceId}/`, ctx.serverUrl).toString()
         const metaUrl = `${spaceUrl}meta`
         try {
-          const created = await alice.rootClient.request({
-            url: metaUrl,
-            method: 'PUT',
-            action: 'PUT',
-            json: { id: spaceId, name: 'Winner', controller: alice.did },
+          // The create carries the onboarding token when one is configured;
+          // the losing PUT below targets a present Space, so it is an update
+          // and is signed as usual.
+          const created = await ctx.createSpaceByPut({
+            spaceId,
+            spaceDescription: {
+              id: spaceId,
+              name: 'Winner',
+              controller: alice.did
+            },
+            rootClient: alice.rootClient,
             headers: { 'if-none-match': '*' }
           })
           assert.equal(created.status, 201)
           assert.match(
-            created.headers.get('etag'),
+            created.headers.get('etag') ?? '',
             /^"[^"]+"$/,
             'expected a quoted ETag validator on the create'
           )
@@ -942,12 +948,12 @@ export const conditionalRequestsApi: Suite<State> = {
           controller: alice.did
         })
         try {
-          const created = await alice.rootClient.request({
-            url: metaUrl,
-            method: 'PUT',
-            action: 'PUT',
-            json: description('One')
+          const created = await ctx.createSpaceByPut({
+            spaceId,
+            spaceDescription: description('One'),
+            rootClient: alice.rootClient
           })
+          assert.equal(created.status, 201)
           const currentEtag = created.headers.get('etag')
           assert.ok(currentEtag, 'expected an ETag on the Space create')
 

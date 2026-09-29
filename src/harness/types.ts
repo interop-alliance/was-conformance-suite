@@ -54,6 +54,17 @@ export interface ConformanceContext {
     rootClient: ZcapClient
   }) => Promise<{ status: number; headers: Headers; data: any }>
   /**
+   * Creates a space by id with a `PUT` of its Space Metadata object: unsigned
+   * with the onboarding token (if configured), else a signed ZCap request.
+   * Returns the raw status/headers/data for assertions.
+   */
+  createSpaceByPut: (options: {
+    spaceId: string
+    spaceDescription: object
+    rootClient: ZcapClient
+    headers?: Record<string, string>
+  }) => Promise<{ status: number; headers: Headers; data: any }>
+  /**
    * Provisions a Space for the high-level WasClient suites, via the
    * onboarding token when configured, else the client's signed createSpace.
    */
