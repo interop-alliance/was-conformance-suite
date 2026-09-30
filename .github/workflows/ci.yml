@@ -105,9 +105,15 @@ jobs:
             local log="server-${port}.log"
             # setsid puts the server in its own process group so the whole
             # pnpm -> tsx -> node tree can be torn down with one group kill.
+            # The server rejects an empty WAS_ONBOARDING_TOKEN, so only export
+            # it when a token was given.
+            local token_env=""
+            if [ -n "$token" ]; then
+              token_env="WAS_ONBOARDING_TOKEN='$token'"
+            fi
             setsid bash -c \
               "cd teaching-server && SERVER_URL='$url' PORT='$port' \
-                 WAS_ONBOARDING_TOKEN='$token' pnpm exec tsx src/start.ts" \
+                 $token_env pnpm exec tsx src/start.ts" \
               > "$log" 2>&1 &
             local pid=$!
             local healthy=""
