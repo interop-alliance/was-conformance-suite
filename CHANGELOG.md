@@ -1,5 +1,11 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.25.1 - TBD
+
+### Fixed
+
+- Fix lockfile.
+
 ## 0.25.0 - 2026-09-29
 
 ### Changed
