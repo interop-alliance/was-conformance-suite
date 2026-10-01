@@ -161,8 +161,39 @@ export const clientSpaces: Suite<State> = {
         assert.equal(listing.totalItems, listing.items.length)
         assert.deepStrictEqual(
           listing.items.find((item: { id: string }) => item.id === space.id),
-          { id: space.id, name: 'Listed Space', url: `/space/${space.id}/` }
+          {
+            id: space.id,
+            type: ['Space'],
+            name: 'Listed Space',
+            url: `/space/${space.id}/`
+          }
         )
+      }
+    },
+    {
+      id: 'spaces.list-items-carry-type',
+      name: "each listSpaces item carries its Space's Metadata type",
+      group: 'spaces',
+      specRefs: ['https://w3id.org/pws#list-spaces-operation'],
+      run: async (ctx, state) => {
+        const { alice, newSpace } = state
+        await newSpace('Typed Listing Space')
+        const listing = await alice.was.listSpaces()
+        assert.ok(listing.items.length >= 1)
+        // Every listed item, auxiliary Spaces included, carries the same
+        // `type` array its Space Metadata object does.
+        for (const item of listing.items) {
+          assert.ok(
+            Array.isArray(item.type),
+            `listed Space ${item.id} carries a type array`
+          )
+          const metadata = await alice.was.space(item.id).describe()
+          // A Space deleted between the listing and this read is skipped.
+          if (metadata === null) {
+            continue
+          }
+          assert.deepStrictEqual(item.type, metadata.type)
+        }
       }
     },
     {

@@ -1,13 +1,25 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.26.0 - TBD
+
+### Added
+
+- `spaces.list-items-carry-type`: every List Spaces item carries a `type` array
+  equal to its Space Metadata object's `type`, auxiliary Spaces included.
+
+### Changed
+
+- `spaces.list-includes-created` expects the listed item to carry
+  `type: ['Space']`.
+
 ## 0.25.2 - 2026-09-30
 
 ### Fixed
 
 - `governed-log.append-fast-forward-only` expects a `PUT` that re-sends the
   stored log byte for byte to be a no-op answered 204 with the current `ETag`,
-  instead of a 400 `invalid-request-body`. Adding more than one line is still
-  400.
+  instead of a 400 `invalid-request-body`. Adding more than one line is
+  still 400.
 
 ## 0.25.1 - 2026-09-30
 
