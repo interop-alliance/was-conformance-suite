@@ -1,5 +1,14 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.25.2 - TBD
+
+### Fixed
+
+- `governed-log.append-fast-forward-only` expects a `PUT` that re-sends the
+  stored log byte for byte to be a no-op answered 204 with the current `ETag`,
+  instead of a 400 `invalid-request-body`. Adding more than one line is still
+  400.
+
 ## 0.25.1 - 2026-09-30
 
 ### Fixed

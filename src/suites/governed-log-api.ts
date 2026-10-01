@@ -495,7 +495,7 @@ export const governedLogApi: Suite<State> = {
     },
     {
       id: 'governed-log.append-fast-forward-only',
-      name: '[root] an append must fast-forward the stored log: a rewritten prefix is 412 under a current If-Match, adding no line or several is 400, and the log is unchanged',
+      name: '[root] an append must fast-forward the stored log: a rewritten prefix is 412 under a current If-Match, adding several lines is 400, re-sending the stored log is a no-op 204, and the log is unchanged',
       specRefs: [
         'https://w3id.org/pws#precondition-failed',
         'https://w3id.org/pws#invalid-request-body'
@@ -527,21 +527,29 @@ export const governedLogApi: Suite<State> = {
           type: 'precondition-failed'
         })
 
-        // The stored bytes alone, and the stored bytes plus two lines.
-        for (const extended of [
+        // The stored bytes plus two lines.
+        await assertProblem({
+          response: await putLog({
+            collectionId,
+            body:
+              body +
+              secondLine +
+              entryLine({ ordinal: 3, state: twoEpochs }) +
+              '\n',
+            headers: { 'if-match': etag }
+          }),
+          status: 400,
+          type: 'invalid-request-body'
+        })
+
+        // The stored bytes alone: a no-op answered 204 with the current ETag.
+        const resend = await putLog({
+          collectionId,
           body,
-          body + secondLine + entryLine({ ordinal: 3, state: twoEpochs }) + '\n'
-        ]) {
-          await assertProblem({
-            response: await putLog({
-              collectionId,
-              body: extended,
-              headers: { 'if-match': etag }
-            }),
-            status: 400,
-            type: 'invalid-request-body'
-          })
-        }
+          headers: { 'if-match': etag }
+        })
+        assert.equal(resend.status, 204)
+        assert.equal(resend.headers.get('etag'), etag)
 
         const read = await getLog({ collectionId })
         assert.equal(read.headers.get('etag'), etag)
