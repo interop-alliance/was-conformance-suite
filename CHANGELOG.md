@@ -1,5 +1,27 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.27.0 - TBD
+
+### Added
+
+- `changes.concurrent-writes-not-skipped`: two Resources written concurrently to
+  one Collection both surface when the feed is paged with `limit: 1`, and a
+  document's own `checkpoint` resumes right after it.
+- `changes.rewrite-after-checkpoint-surfaces`: a checkpoint issued before a
+  rewrite, echoed back after it, surfaces the rewrite with its new body.
+- `changes.retired-object-checkpoint-400`: an `{ id, updatedAt }` object
+  checkpoint is refused with `invalid-request-body` (400).
+- `changes.foreign-collection-checkpoint-400`: a checkpoint issued for another
+  Collection is refused with `invalid-request-body` (400).
+
+### Changed
+
+- The `changes` checkpoint is an opaque string.
+  `changes.live-docs-tombstone-checkpoint` asserts that every document carries a
+  string `checkpoint` and that the page's `checkpoint` equals the last
+  document's. `changes.malformed-checkpoint-400` sends a string the server did
+  not issue.
+
 ## 0.26.0 - 2026-10-01
 
 ### Added

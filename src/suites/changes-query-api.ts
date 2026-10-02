@@ -11,9 +11,14 @@
  * description's WAS version entry. It varies by whether the server keeps an
  * ordered change log at all rather than by backend, which is why the token sits
  * there and not on a Backend description. `setup()` reads the document and the
- * two tests exercising the profile skip when the token is absent; the two that
+ * tests exercising the profile skip when the token is absent; the two that
  * exercise the query endpoint's profile dispatch (an unknown profile, an
  * omitted one) hold for any server serving the endpoint and run unconditionally.
+ *
+ * The checkpoint is an opaque string the server issues, scoped to the server
+ * and Collection. These tests compare it by equality only and never read inside
+ * it. Tests that write to the feed do so in a Collection of their own, so the
+ * shared `feed` Collection keeps exactly the three documents `setup()` wrote.
  */
 import assert from '../harness/assert.js'
 import { serviceFeatures } from '../harness/serviceDescription.js'
@@ -24,6 +29,59 @@ interface State {
   collectionId: string
   changesSupported: boolean
   queryUrl: () => string
+  /**
+   * Creates a fresh Collection in Alice's Space and returns its id.
+   */
+  createCollection: () => Promise<string>
+  /**
+   * Writes the JSON `body` to a Resource by id.
+   */
+  putResource: (options: {
+    collectionId: string
+    resourceId: string
+    body: unknown
+  }) => Promise<void>
+  /**
+   * Posts one `changes` query to a Collection and returns the response body.
+   */
+  pullPage: (options: {
+    collectionId: string
+    checkpoint?: unknown
+    limit?: number
+  }) => Promise<{ documents: any[]; checkpoint: string | null }>
+}
+
+const PROBLEM_INVALID_REQUEST_BODY = 'https://w3id.org/pws#invalid-request-body'
+
+/**
+ * Asserts that a feed page carries an opaque string checkpoint on each
+ * document, and that the page's checkpoint equals the last document's (or is
+ * `null` on an empty page).
+ *
+ * @param page {object}
+ * @param page.documents {any[]}
+ * @param page.checkpoint {string | null}
+ */
+function assertPageCheckpoints(page: {
+  documents: any[]
+  checkpoint: string | null
+}): void {
+  for (const doc of page.documents) {
+    assert.equal(
+      typeof doc.checkpoint,
+      'string',
+      `document "${doc.id}" carries no string checkpoint`
+    )
+  }
+  if (page.documents.length === 0) {
+    assert.equal(page.checkpoint, null)
+    return
+  }
+  assert.equal(typeof page.checkpoint, 'string')
+  assert.equal(
+    page.checkpoint,
+    page.documents[page.documents.length - 1].checkpoint
+  )
 }
 
 export const changesQueryApi: Suite<State> = {
@@ -80,7 +138,94 @@ export const changesQueryApi: Suite<State> = {
     const features = await serviceFeatures({ serverUrl: ctx.serverUrl })
     const changesSupported = features.includes('changes-query')
 
-    return { alice, collectionId, changesSupported, queryUrl }
+    /**
+     * Creates a fresh Collection in Alice's Space.
+     *
+     * @returns {Promise<string>} the new Collection's id
+     */
+    async function createCollection(): Promise<string> {
+      const id = ctx.generateId()
+      await alice.rootClient.request({
+        url: new URL(`/space/${alice.space1.id}/`, ctx.serverUrl).toString(),
+        method: 'POST',
+        action: 'POST',
+        json: { id, name: 'Feed ordering' }
+      })
+      return id
+    }
+
+    /**
+     * Writes a JSON body to a Resource by id.
+     *
+     * @param options {object}
+     * @param options.collectionId {string}
+     * @param options.resourceId {string}
+     * @param options.body {unknown}
+     */
+    async function putResource({
+      collectionId: targetCollectionId,
+      resourceId,
+      body
+    }: {
+      collectionId: string
+      resourceId: string
+      body: unknown
+    }): Promise<void> {
+      await alice.rootClient.request({
+        url: new URL(
+          `/space/${alice.space1.id}/${targetCollectionId}/${resourceId}`,
+          ctx.serverUrl
+        ).toString(),
+        method: 'PUT',
+        action: 'PUT',
+        json: body
+      })
+    }
+
+    /**
+     * Posts one `changes` query to a Collection.
+     *
+     * @param options {object}
+     * @param options.collectionId {string}
+     * @param [options.checkpoint] {unknown}   sent verbatim when present
+     * @param [options.limit] {number}
+     * @returns {Promise<object>} the response body
+     */
+    async function pullPage({
+      collectionId: targetCollectionId,
+      checkpoint,
+      limit = 100
+    }: {
+      collectionId: string
+      checkpoint?: unknown
+      limit?: number
+    }): Promise<{ documents: any[]; checkpoint: string | null }> {
+      const response = await alice.rootClient.request({
+        url: new URL(
+          `/space/${alice.space1.id}/${targetCollectionId}/query`,
+          ctx.serverUrl
+        ).toString(),
+        method: 'POST',
+        action: 'POST',
+        json: {
+          profile: 'changes',
+          ...(checkpoint !== undefined && { checkpoint }),
+          limit
+        }
+      })
+      assert.equal(response.status, 200)
+      return response.data
+    }
+
+    return {
+      alice,
+      collectionId,
+      changesSupported,
+      queryUrl,
+      createCollection,
+      putResource,
+      pullPage
+    }
   },
 
   teardown: async (ctx, state) => {
@@ -128,10 +273,10 @@ export const changesQueryApi: Suite<State> = {
         assert.equal(tombstone._deleted, true)
         assert.equal(tombstone.data, undefined)
 
-        // The checkpoint is the last returned document's keyset position.
+        // The checkpoint is an opaque string equal to the last returned
+        // document's own checkpoint, and every document carries one.
         assert.ok(response.data.checkpoint)
-        assert.equal(typeof response.data.checkpoint.id, 'string')
-        assert.equal(typeof response.data.checkpoint.updatedAt, 'string')
+        assertPageCheckpoints(response.data)
       }
     },
     {
@@ -204,16 +349,18 @@ export const changesQueryApi: Suite<State> = {
         if (!changesSupported) {
           ctx.skip('the service description does not advertise changes-query')
         }
-        // When present, `checkpoint` MUST be an object with a string `id` and a
-        // string `updatedAt`; a string checkpoint is malformed and rejected
-        // with `invalid-request-body` (400).
+        // A checkpoint the server did not issue is rejected with
+        // `invalid-request-body` (400).
         let expectedError: any
         try {
           await alice.rootClient.request({
             url: queryUrl(),
             method: 'POST',
             action: 'POST',
-            json: { profile: 'changes', checkpoint: 'not-an-object' }
+            json: {
+              profile: 'changes',
+              checkpoint: 'not-issued-by-this-server'
+            }
           })
         } catch (err) {
           expectedError = err
@@ -227,6 +374,212 @@ export const changesQueryApi: Suite<State> = {
           expectedError.data.type,
           'https://w3id.org/pws#invalid-request-body'
         )
+      }
+    },
+    {
+      id: 'changes.concurrent-writes-not-skipped',
+      name:
+        '[root] two concurrent writes to one Collection both surface when ' +
+        'the feed is paged between them',
+      specRefs: ['https://w3id.org/pws#query-profile-changes'],
+      run: async (ctx, state) => {
+        const { changesSupported, createCollection, putResource, pullPage } =
+          state
+        if (!changesSupported) {
+          ctx.skip('the service description does not advertise changes-query')
+        }
+        // Two writes fired together are likely to share an `updatedAt`. The
+        // feed is ordered by the server's feed position, so neither may be
+        // skipped by a checkpoint taken between them.
+        const targetCollectionId = await createCollection()
+        await Promise.all(
+          ['a', 'b'].map(resourceId =>
+            putResource({
+              collectionId: targetCollectionId,
+              resourceId,
+              body: { resourceId }
+            })
+          )
+        )
+
+        const first = await pullPage({
+          collectionId: targetCollectionId,
+          limit: 1
+        })
+        assert.equal(first.documents.length, 1)
+        assertPageCheckpoints(first)
+        const second = await pullPage({
+          collectionId: targetCollectionId,
+          checkpoint: first.checkpoint,
+          limit: 1
+        })
+        assert.equal(second.documents.length, 1)
+        assertPageCheckpoints(second)
+        assert.notEqual(second.checkpoint, first.checkpoint)
+        assert.deepEqual(
+          [first.documents[0].id, second.documents[0].id].sort(),
+          ['a', 'b']
+        )
+        const end = await pullPage({
+          collectionId: targetCollectionId,
+          checkpoint: second.checkpoint,
+          limit: 1
+        })
+        assert.deepEqual(end.documents, [])
+        assert.equal(end.checkpoint, null)
+
+        // A document's own checkpoint resumes right after that document.
+        const whole = await pullPage({ collectionId: targetCollectionId })
+        assert.equal(whole.documents.length, 2)
+        assertPageCheckpoints(whole)
+        const rest = await pullPage({
+          collectionId: targetCollectionId,
+          checkpoint: whole.documents[0].checkpoint
+        })
+        assert.deepEqual(
+          rest.documents.map((doc: any) => doc.id),
+          [whole.documents[1].id]
+        )
+      }
+    },
+    {
+      id: 'changes.rewrite-after-checkpoint-surfaces',
+      name:
+        '[root] a write made after a checkpoint was issued surfaces when ' +
+        'that checkpoint is echoed back',
+      specRefs: ['https://w3id.org/pws#query-profile-changes'],
+      run: async (ctx, state) => {
+        const { changesSupported, createCollection, putResource, pullPage } =
+          state
+        if (!changesSupported) {
+          ctx.skip('the service description does not advertise changes-query')
+        }
+        const targetCollectionId = await createCollection()
+        await putResource({
+          collectionId: targetCollectionId,
+          resourceId: 'x',
+          body: { revision: 1 }
+        })
+
+        // Drain the feed to its end, keeping the last checkpoint issued.
+        let checkpoint: string | undefined
+        for (let page = 0; page < 50; page++) {
+          const result = await pullPage({
+            collectionId: targetCollectionId,
+            ...(checkpoint !== undefined && { checkpoint })
+          })
+          if (result.checkpoint === null) {
+            break
+          }
+          checkpoint = result.checkpoint
+        }
+        assert.ok(checkpoint, 'expected the feed to issue a checkpoint')
+
+        // Rewrite `x` right away, then resume from the checkpoint.
+        await putResource({
+          collectionId: targetCollectionId,
+          resourceId: 'x',
+          body: { revision: 2 }
+        })
+        const resumed = await pullPage({
+          collectionId: targetCollectionId,
+          checkpoint
+        })
+        assertPageCheckpoints(resumed)
+        const rewritten = resumed.documents.find((doc: any) => doc.id === 'x')
+        assert.ok(
+          rewritten,
+          'expected the rewrite to surface past the checkpoint'
+        )
+        assert.deepEqual(rewritten.data, { revision: 2 })
+      }
+    },
+    {
+      id: 'changes.retired-object-checkpoint-400',
+      name:
+        '[root] a `changes` query with an `{ id, updatedAt }` object ' +
+        'checkpoint is rejected with 400',
+      specRefs: [
+        'https://w3id.org/pws#query-profile-changes',
+        'https://w3id.org/pws#invalid-request-body'
+      ],
+      run: async (ctx, state) => {
+        const { alice, queryUrl, changesSupported } = state
+        if (!changesSupported) {
+          ctx.skip('the service description does not advertise changes-query')
+        }
+        // The checkpoint is an opaque string; the retired object shape is a
+        // checkpoint the server did not issue.
+        let expectedError: any
+        try {
+          await alice.rootClient.request({
+            url: queryUrl(),
+            method: 'POST',
+            action: 'POST',
+            json: {
+              profile: 'changes',
+              checkpoint: { id: 'r1', updatedAt: '2026-01-01T00:00:00.000Z' }
+            }
+          })
+        } catch (err) {
+          expectedError = err
+        }
+        assert.ok(
+          expectedError,
+          'expected the object checkpoint to be rejected'
+        )
+        assert.equal(expectedError.response.status, 400)
+        assert.equal(expectedError.data.type, PROBLEM_INVALID_REQUEST_BODY)
+      }
+    },
+    {
+      id: 'changes.foreign-collection-checkpoint-400',
+      name:
+        '[root] a checkpoint issued for another Collection is rejected ' +
+        'with 400',
+      specRefs: [
+        'https://w3id.org/pws#query-profile-changes',
+        'https://w3id.org/pws#invalid-request-body'
+      ],
+      run: async (ctx, state) => {
+        const {
+          alice,
+          queryUrl,
+          changesSupported,
+          createCollection,
+          putResource,
+          pullPage
+        } = state
+        if (!changesSupported) {
+          ctx.skip('the service description does not advertise changes-query')
+        }
+        // A checkpoint is scoped to the Collection that issued it.
+        const otherCollectionId = await createCollection()
+        await putResource({
+          collectionId: otherCollectionId,
+          resourceId: 'elsewhere',
+          body: { elsewhere: true }
+        })
+        const other = await pullPage({ collectionId: otherCollectionId })
+        assert.equal(typeof other.checkpoint, 'string')
+
+        let expectedError: any
+        try {
+          await alice.rootClient.request({
+            url: queryUrl(),
+            method: 'POST',
+            action: 'POST',
+            json: { profile: 'changes', checkpoint: other.checkpoint }
+          })
+        } catch (err) {
+          expectedError = err
+        }
+        assert.ok(
+          expectedError,
+          "expected another Collection's checkpoint to be rejected"
+        )
+        assert.equal(expectedError.response.status, 400)
+        assert.equal(expectedError.data.type, PROBLEM_INVALID_REQUEST_BODY)
       }
     }
   ]
