@@ -6,6 +6,7 @@
  */
 import { signCapabilityInvocation } from '@interop/http-signature-zcap-invoke'
 import assert from '../harness/assert.js'
+import { assertResourceWriteResponse } from '../helpers.js'
 import type { Suite } from '../harness/types.js'
 
 interface State {
@@ -279,7 +280,7 @@ export const resourceApi: Suite<State> = {
           method: 'PUT',
           json: body
         })
-        assert.equal(putResponse.status, 204)
+        assertResourceWriteResponse({ response: putResponse, created: true })
 
         const getResponse = await alice.rootClient.request({
           url: resourceUrl,
@@ -345,7 +346,7 @@ export const resourceApi: Suite<State> = {
           method: 'PUT',
           json: { id: resourceId, name: 'Updated Name' }
         })
-        assert.equal(secondPut.status, 204)
+        assertResourceWriteResponse({ response: secondPut, created: false })
 
         const getResponse = await alice.rootClient.request({
           url: resourceUrl,
@@ -789,10 +790,11 @@ export const resourceApi: Suite<State> = {
           action: 'PUT',
           json: { contentType: 'text/plain', size: 999999, custom }
         })
-        assert.ok(
-          putResponse.status === 204 || putResponse.status === 200,
-          `expected a success status, got ${putResponse.status}`
-        )
+        assertResourceWriteResponse({
+          response: putResponse,
+          created: false,
+          metaWrite: true
+        })
 
         const after = await alice.rootClient.request({
           url: metaUrl,

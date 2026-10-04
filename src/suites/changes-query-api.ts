@@ -15,20 +15,39 @@
  * exercise the query endpoint's profile dispatch (an unknown profile, an
  * omitted one) hold for any server serving the endpoint and run unconditionally.
  *
+ * The feed carries every record of a Collection, one document per record,
+ * discriminated on `kind`: `resource` (a Resource or its tombstone, whatever
+ * its content type), `collection-metadata` (the Collection Metadata object),
+ * `policy`, and `log` (the governing history log). A consumer skips a kind it
+ * does not know, so the cases that count Resources filter on
+ * `kind === 'resource'`. A fresh Collection's feed is not empty: its create
+ * takes a position for the `collection-metadata` document.
+ *
  * The checkpoint is an opaque string the server issues, scoped to the server
  * and Collection. These tests compare it by equality only and never read inside
  * it. Tests that write to the feed do so in a Collection of their own, so the
- * shared `feed` Collection keeps exactly the three documents `setup()` wrote.
+ * shared `feed` Collection keeps exactly the three Resource documents `setup()`
+ * wrote.
  */
 import assert from '../harness/assert.js'
-import { serviceFeatures } from '../harness/serviceDescription.js'
+import {
+  ENCRYPTED_COLLECTIONS_IDENTIFIER,
+  serviceFeatures
+} from '../harness/serviceDescription.js'
 import type { Suite } from '../harness/types.js'
+import { assertWriteStamp } from '../helpers.js'
 
 interface State {
   alice: any
   collectionId: string
   changesSupported: boolean
+  governedSupported: boolean
   queryUrl: () => string
+  /**
+   * Absolute URL of a Collection's Metadata object, or of a sub-resource
+   * under it (`log`).
+   */
+  metaUrl: (collectionId: string, subPath?: string) => string
   /**
    * Creates a fresh Collection in Alice's Space and returns its id.
    */
@@ -42,6 +61,16 @@ interface State {
     body: unknown
   }) => Promise<void>
   /**
+   * Writes raw bytes to a Resource by id under the given media type.
+   */
+  putBytes: (options: {
+    collectionId: string
+    resourceId: string
+    bytes: Uint8Array
+    contentType: string
+    headers?: Record<string, string>
+  }) => Promise<any>
+  /**
    * Posts one `changes` query to a Collection and returns the response body.
    */
   pullPage: (options: {
@@ -49,6 +78,81 @@ interface State {
     checkpoint?: unknown
     limit?: number
   }) => Promise<{ documents: any[]; checkpoint: string | null }>
+}
+
+/**
+ * The `kind` values the profile defines. A server emits no other.
+ */
+const DOCUMENT_KINDS = ['resource', 'collection-metadata', 'policy', 'log']
+
+/**
+ * A one-epoch `edv` key-epoch descriptor, the head state of a governing log's
+ * genesis line.
+ */
+const oneEpoch = {
+  type: 'WasEpochConfiguration',
+  scheme: 'edv',
+  currentEpoch: 'urn:epoch:1',
+  epochs: [
+    {
+      id: 'urn:epoch:1',
+      recipients: [
+        {
+          header: { kid: 'did:key:zApp1#ka', alg: 'ECDH-ES+A256KW' },
+          encrypted_key: 'wrapped-1'
+        }
+      ]
+    }
+  ]
+}
+
+/**
+ * The same descriptor after one rotation, the head state of an appended line.
+ */
+const twoEpochs = {
+  ...oneEpoch,
+  currentEpoch: 'urn:epoch:2',
+  epochs: [
+    {
+      id: 'urn:epoch:2',
+      recipients: [
+        {
+          header: { kid: 'did:key:zApp2#ka', alg: 'ECDH-ES+A256KW' },
+          encrypted_key: 'wrapped-2'
+        }
+      ]
+    },
+    ...oneEpoch.epochs
+  ]
+}
+
+/**
+ * One governing-log line. The server reads only `state` and the genesis
+ * line's `parameters.method`.
+ *
+ * @param options {object}
+ * @param options.ordinal {number}
+ * @param options.state {object}
+ * @returns {string}   the line, newline-terminated
+ */
+function logLine({
+  ordinal,
+  state
+}: {
+  ordinal: number
+  state: object
+}): string {
+  const parameters =
+    ordinal === 1 ? { method: 'resource-log:0.1', scid: 'zScid' } : {}
+  return (
+    JSON.stringify({
+      versionId: `${ordinal}-hash${ordinal}`,
+      versionTime: '2026-10-04T00:00:00Z',
+      parameters,
+      state,
+      proof: []
+    }) + '\n'
+  )
 }
 
 const PROBLEM_INVALID_REQUEST_BODY = 'https://w3id.org/pws#invalid-request-body'
@@ -82,6 +186,54 @@ function assertPageCheckpoints(page: {
     page.checkpoint,
     page.documents[page.documents.length - 1].checkpoint
   )
+}
+
+/**
+ * Asserts the members every feed document carries whatever its `kind`: the
+ * `kind` itself, a boolean `deleted` (and no retired `_deleted`), the record's
+ * write stamp, its `generation`, its quoted `etag`, and its `checkpoint`.
+ *
+ * @param doc {any}   one feed document
+ */
+function assertCommonMembers(doc: any): void {
+  assert.ok(
+    DOCUMENT_KINDS.includes(doc.kind),
+    `document "${doc.id}" carries no known \`kind\` (got ${doc.kind})`
+  )
+  assert.equal(typeof doc.id, 'string')
+  assert.equal(
+    typeof doc.deleted,
+    'boolean',
+    `document "${doc.id}" carries no boolean \`deleted\``
+  )
+  assert.equal(
+    '_deleted' in doc,
+    false,
+    `document "${doc.id}" carries the retired \`_deleted\` member`
+  )
+  assertWriteStamp(doc)
+  assert.equal(
+    typeof doc.generation,
+    'string',
+    `document "${doc.id}" carries no string \`generation\``
+  )
+  assert.match(
+    doc.etag ?? '',
+    /^"[^"]+"$/,
+    `document "${doc.id}" carries no quoted strong \`etag\``
+  )
+  assert.equal(typeof doc.checkpoint, 'string')
+}
+
+/**
+ * The documents of a page whose `kind` is `resource`.
+ *
+ * @param page {object}
+ * @param page.documents {any[]}
+ * @returns {any[]}
+ */
+function resourceDocuments(page: { documents: any[] }): any[] {
+  return page.documents.filter((doc: any) => doc.kind === 'resource')
 }
 
 export const changesQueryApi: Suite<State> = {
@@ -137,6 +289,29 @@ export const changesQueryApi: Suite<State> = {
 
     const features = await serviceFeatures({ serverUrl: ctx.serverUrl })
     const changesSupported = features.includes('changes-query')
+    const encryptedFeatures = await serviceFeatures({
+      serverUrl: ctx.serverUrl,
+      specIdentifier: ENCRYPTED_COLLECTIONS_IDENTIFIER
+    })
+    const governedSupported = encryptedFeatures.includes(
+      'governed-history-logs'
+    )
+
+    /**
+     * Absolute URL of a Collection's Metadata object, or of a sub-resource
+     * under it.
+     *
+     * @param targetCollectionId {string}
+     * @param [subPath] {string}   e.g. `log`
+     * @returns {string}
+     */
+    function metaUrl(targetCollectionId: string, subPath?: string): string {
+      const suffix = subPath === undefined ? '' : `/${subPath}`
+      return new URL(
+        `/space/${alice.space1.id}/${targetCollectionId}/meta${suffix}`,
+        ctx.serverUrl
+      ).toString()
+    }
 
     /**
      * Creates a fresh Collection in Alice's Space.
@@ -183,6 +358,42 @@ export const changesQueryApi: Suite<State> = {
     }
 
     /**
+     * Writes raw bytes to a Resource by id.
+     *
+     * @param options {object}
+     * @param options.collectionId {string}
+     * @param options.resourceId {string}
+     * @param options.bytes {Uint8Array}
+     * @param options.contentType {string}
+     * @param [options.headers] {object}   extra request headers
+     * @returns {Promise<any>} the response
+     */
+    async function putBytes({
+      collectionId: targetCollectionId,
+      resourceId,
+      bytes,
+      contentType,
+      headers = {}
+    }: {
+      collectionId: string
+      resourceId: string
+      bytes: Uint8Array
+      contentType: string
+      headers?: Record<string, string>
+    }): Promise<any> {
+      return alice.rootClient.request({
+        url: new URL(
+          `/space/${alice.space1.id}/${targetCollectionId}/${resourceId}`,
+          ctx.serverUrl
+        ).toString(),
+        method: 'PUT',
+        action: 'PUT',
+        headers: { 'content-type': contentType, ...headers },
+        body: bytes
+      })
+    }
+
+    /**
      * Posts one `changes` query to a Collection.
      *
      * @param options {object}
@@ -221,9 +432,12 @@ export const changesQueryApi: Suite<State> = {
       alice,
       collectionId,
       changesSupported,
+      governedSupported,
       queryUrl,
+      metaUrl,
       createCollection,
       putResource,
+      putBytes,
       pullPage
     }
   },
@@ -260,18 +474,23 @@ export const changesQueryApi: Suite<State> = {
         assert.match(response.headers.get('content-type'), /application\/json/)
 
         const byId = new Map(
-          response.data.documents.map((doc: any) => [doc.id, doc])
+          resourceDocuments(response.data).map((doc: any) => [doc.id, doc])
         )
         assert.deepEqual([...byId.keys()].sort(), ['r1', 'r2', 'r3'])
 
-        // Live documents carry their body under `data` and `_deleted: false`.
-        assert.equal((byId.get('r1') as any)._deleted, false)
-        assert.deepEqual((byId.get('r1') as any).data, { id: 'r1' })
+        // Live documents carry their body under `data`, `deleted: false`,
+        // and their stored `contentType`.
+        const live = byId.get('r1') as any
+        assert.equal(live.deleted, false)
+        assert.deepEqual(live.data, { id: 'r1' })
+        assert.match(live.contentType ?? '', /^application\/json/)
 
-        // The deleted document is a tombstone: `_deleted: true`, no `data`.
+        // The deleted document is a tombstone: `deleted: true`, no `data`,
+        // and the last-known `contentType`.
         const tombstone = byId.get('r2') as any
-        assert.equal(tombstone._deleted, true)
+        assert.equal(tombstone.deleted, true)
         assert.equal(tombstone.data, undefined)
+        assert.match(tombstone.contentType ?? '', /^application\/json/)
 
         // The checkpoint is an opaque string equal to the last returned
         // document's own checkpoint, and every document carries one.
@@ -390,8 +609,12 @@ export const changesQueryApi: Suite<State> = {
         }
         // Two writes fired together are likely to share an `updatedAt`. The
         // feed is ordered by the server's feed position, so neither may be
-        // skipped by a checkpoint taken between them.
+        // skipped by a checkpoint taken between them. The Collection's create
+        // took a position of its own, so the pages start past it.
         const targetCollectionId = await createCollection()
+        const created = await pullPage({ collectionId: targetCollectionId })
+        assert.equal(typeof created.checkpoint, 'string')
+        const start = created.checkpoint as string
         await Promise.all(
           ['a', 'b'].map(resourceId =>
             putResource({
@@ -404,6 +627,7 @@ export const changesQueryApi: Suite<State> = {
 
         const first = await pullPage({
           collectionId: targetCollectionId,
+          checkpoint: start,
           limit: 1
         })
         assert.equal(first.documents.length, 1)
@@ -429,7 +653,10 @@ export const changesQueryApi: Suite<State> = {
         assert.equal(end.checkpoint, null)
 
         // A document's own checkpoint resumes right after that document.
-        const whole = await pullPage({ collectionId: targetCollectionId })
+        const whole = await pullPage({
+          collectionId: targetCollectionId,
+          checkpoint: start
+        })
         assert.equal(whole.documents.length, 2)
         assertPageCheckpoints(whole)
         const rest = await pullPage({
@@ -580,6 +807,388 @@ export const changesQueryApi: Suite<State> = {
         )
         assert.equal(expectedError.response.status, 400)
         assert.equal(expectedError.data.type, PROBLEM_INVALID_REQUEST_BODY)
+      }
+    },
+    {
+      id: 'changes.kind-on-every-document',
+      name: '[root] every feed document carries a `kind` from the defined set',
+      specRefs: ['https://w3id.org/pws#query-profile-changes'],
+      run: async (ctx, state) => {
+        const { changesSupported, collectionId, pullPage } = state
+        if (!changesSupported) {
+          ctx.skip('the service description does not advertise changes-query')
+        }
+        const page = await pullPage({ collectionId })
+        assert.ok(page.documents.length > 0, 'expected a non-empty feed')
+        for (const doc of page.documents) {
+          assert.ok(
+            DOCUMENT_KINDS.includes(doc.kind),
+            `document "${doc.id}" carries no known \`kind\` (got ${doc.kind})`
+          )
+        }
+        // The shared Collection's create and its three writes surface as one
+        // `collection-metadata` document and three `resource` documents.
+        assert.deepEqual(
+          page.documents
+            .filter((doc: any) => doc.kind === 'collection-metadata')
+            .map((doc: any) => doc.id),
+          [state.metaUrl(collectionId)]
+        )
+        assert.equal(resourceDocuments(page).length, 3)
+      }
+    },
+    {
+      id: 'changes.deleted-member',
+      name:
+        '[root] every feed document carries a boolean `deleted` and no ' +
+        '`_deleted`',
+      specRefs: ['https://w3id.org/pws#query-profile-changes'],
+      run: async (ctx, state) => {
+        const { changesSupported, collectionId, pullPage } = state
+        if (!changesSupported) {
+          ctx.skip('the service description does not advertise changes-query')
+        }
+        const page = await pullPage({ collectionId })
+        for (const doc of page.documents) {
+          assert.equal(
+            typeof doc.deleted,
+            'boolean',
+            `document "${doc.id}" carries no boolean \`deleted\``
+          )
+          assert.equal(
+            '_deleted' in doc,
+            false,
+            `document "${doc.id}" carries the retired \`_deleted\` member`
+          )
+        }
+        const deleted = page.documents
+          .filter((doc: any) => doc.deleted)
+          .map((doc: any) => doc.id)
+        assert.deepEqual(deleted, ['r2'])
+      }
+    },
+    {
+      id: 'changes.document-stamp-generation-etag',
+      name:
+        '[root] every feed document carries its write stamp, `generation`, ' +
+        'and quoted `etag`',
+      specRefs: ['https://w3id.org/pws#query-profile-changes'],
+      run: async (ctx, state) => {
+        const { alice, changesSupported, collectionId, pullPage } = state
+        if (!changesSupported) {
+          ctx.skip('the service description does not advertise changes-query')
+        }
+        const page = await pullPage({ collectionId })
+        for (const doc of page.documents) {
+          assertCommonMembers(doc)
+        }
+        // A live Resource's `etag` is the one its GET serves.
+        const live = resourceDocuments(page).find((doc: any) => doc.id === 'r1')
+        const read = await alice.rootClient.request({
+          url: new URL(
+            `/space/${alice.space1.id}/${collectionId}/r1`,
+            ctx.serverUrl
+          ).toString(),
+          method: 'GET'
+        })
+        assert.equal(live.etag, read.headers.get('etag'))
+      }
+    },
+    {
+      id: 'changes.non-json-resource-and-tombstone',
+      name:
+        '[root] a binary and a `text/jsonl` Resource and their tombstones ' +
+        'appear with `contentType` and no `data`',
+      specRefs: ['https://w3id.org/pws#query-profile-changes'],
+      run: async (ctx, state) => {
+        const {
+          alice,
+          changesSupported,
+          createCollection,
+          putBytes,
+          pullPage
+        } = state
+        if (!changesSupported) {
+          ctx.skip('the service description does not advertise changes-query')
+        }
+        const targetCollectionId = await createCollection()
+        const written = [
+          {
+            resourceId: 'blob',
+            contentType: 'application/octet-stream',
+            bytes: new Uint8Array([0, 1, 2, 255])
+          },
+          {
+            resourceId: 'lines',
+            contentType: 'text/jsonl',
+            bytes: new TextEncoder().encode('{"a":1}\n{"a":2}\n')
+          }
+        ]
+        for (const resource of written) {
+          await putBytes({ collectionId: targetCollectionId, ...resource })
+        }
+
+        const live = resourceDocuments(
+          await pullPage({ collectionId: targetCollectionId })
+        )
+        assert.deepEqual(live.map((doc: any) => doc.id).sort(), [
+          'blob',
+          'lines'
+        ])
+        for (const { resourceId, contentType } of written) {
+          const doc = live.find((entry: any) => entry.id === resourceId)
+          assert.equal(doc.deleted, false)
+          assert.ok(
+            doc.contentType.startsWith(contentType),
+            `expected ${resourceId} to carry contentType ${contentType}, ` +
+              `got ${doc.contentType}`
+          )
+          assert.equal(
+            'data' in doc,
+            false,
+            `a non-JSON Resource (${resourceId}) carries no inline \`data\``
+          )
+        }
+
+        for (const { resourceId } of written) {
+          await alice.rootClient.request({
+            url: new URL(
+              `/space/${alice.space1.id}/${targetCollectionId}/${resourceId}`,
+              ctx.serverUrl
+            ).toString(),
+            method: 'DELETE'
+          })
+        }
+        const tombstones = resourceDocuments(
+          await pullPage({ collectionId: targetCollectionId })
+        )
+        for (const { resourceId, contentType } of written) {
+          const doc = tombstones.find((entry: any) => entry.id === resourceId)
+          assert.ok(doc, `expected the ${resourceId} tombstone in the feed`)
+          assert.equal(doc.deleted, true)
+          assert.ok(
+            doc.contentType.startsWith(contentType),
+            `expected the ${resourceId} tombstone to carry its last-known ` +
+              `contentType ${contentType}, got ${doc.contentType}`
+          )
+          assert.equal('data' in doc, false)
+        }
+      }
+    },
+    {
+      id: 'changes.collection-metadata-document',
+      name:
+        '[root] the Collection Metadata object appears as a ' +
+        '`collection-metadata` document that moves on each Metadata write',
+      specRefs: [
+        'https://w3id.org/pws#query-profile-changes',
+        'https://w3id.org/pws#collection-metadata-data-model'
+      ],
+      run: async (ctx, state) => {
+        const { alice, changesSupported, createCollection, metaUrl, pullPage } =
+          state
+        if (!changesSupported) {
+          ctx.skip('the service description does not advertise changes-query')
+        }
+        const targetCollectionId = await createCollection()
+        const url = metaUrl(targetCollectionId)
+
+        // The create takes a position: a fresh Collection's feed holds the
+        // Metadata object's document, with the `ETag` its GET serves.
+        const created = await pullPage({ collectionId: targetCollectionId })
+        assertPageCheckpoints(created)
+        assert.equal(created.documents.length, 1)
+        const [first] = created.documents
+        assert.equal(first.kind, 'collection-metadata')
+        assert.equal(first.id, url)
+        assert.equal(first.deleted, false)
+        assert.equal(typeof first.generation, 'string')
+        assert.equal('data' in first, false)
+        const firstRead = await alice.rootClient.request({ url, method: 'GET' })
+        assert.equal(first.etag, firstRead.headers.get('etag'))
+
+        // A Metadata write moves it to a new position with the new `ETag`.
+        await alice.rootClient.request({
+          url,
+          method: 'PUT',
+          action: 'PUT',
+          json: { id: targetCollectionId, name: 'Renamed' }
+        })
+        const secondRead = await alice.rootClient.request({
+          url,
+          method: 'GET'
+        })
+        const moved = await pullPage({
+          collectionId: targetCollectionId,
+          checkpoint: created.checkpoint
+        })
+        assert.equal(moved.documents.length, 1)
+        const [second] = moved.documents
+        assert.equal(second.kind, 'collection-metadata')
+        assert.equal(second.id, url)
+        assert.equal(second.etag, secondRead.headers.get('etag'))
+        assert.notEqual(second.etag, first.etag)
+
+        // The record appears once, at the position of its latest write.
+        const whole = await pullPage({ collectionId: targetCollectionId })
+        assert.deepEqual(
+          whole.documents.map((doc: any) => doc.etag),
+          [second.etag]
+        )
+      }
+    },
+    {
+      id: 'changes.mixed-kind-paging',
+      name:
+        '[root] a feed of mixed kinds pages one document at a time by ' +
+        'per-document checkpoint, in write order',
+      specRefs: ['https://w3id.org/pws#query-profile-changes'],
+      run: async (ctx, state) => {
+        const {
+          alice,
+          changesSupported,
+          createCollection,
+          metaUrl,
+          putResource,
+          putBytes,
+          pullPage
+        } = state
+        if (!changesSupported) {
+          ctx.skip('the service description does not advertise changes-query')
+        }
+        // The Metadata write comes last, so its document follows both
+        // Resource documents.
+        const targetCollectionId = await createCollection()
+        await putResource({
+          collectionId: targetCollectionId,
+          resourceId: 'a',
+          body: { a: true }
+        })
+        await putBytes({
+          collectionId: targetCollectionId,
+          resourceId: 'b',
+          bytes: new Uint8Array([7]),
+          contentType: 'application/octet-stream'
+        })
+        await alice.rootClient.request({
+          url: metaUrl(targetCollectionId),
+          method: 'PUT',
+          action: 'PUT',
+          json: { id: targetCollectionId, name: 'Mixed' }
+        })
+
+        const whole = await pullPage({ collectionId: targetCollectionId })
+        assertPageCheckpoints(whole)
+        const keys = whole.documents.map((doc: any) => `${doc.kind} ${doc.id}`)
+        assert.deepEqual(keys, [
+          'resource a',
+          'resource b',
+          `collection-metadata ${metaUrl(targetCollectionId)}`
+        ])
+
+        const paged: string[] = []
+        let checkpoint: string | undefined
+        for (let page = 0; page < 10; page++) {
+          const result = await pullPage({
+            collectionId: targetCollectionId,
+            ...(checkpoint !== undefined && { checkpoint }),
+            limit: 1
+          })
+          assertPageCheckpoints(result)
+          if (result.checkpoint === null) {
+            assert.deepEqual(result.documents, [])
+            break
+          }
+          assert.equal(result.documents.length, 1)
+          const [doc] = result.documents
+          assertCommonMembers(doc)
+          paged.push(`${doc.kind} ${doc.id}`)
+          checkpoint = result.checkpoint
+        }
+        assert.deepEqual(paged, keys)
+      }
+    },
+    {
+      id: 'changes.log-document',
+      name:
+        '[root] a governing history log appears as a `log` document that ' +
+        'moves on each append',
+      specRefs: ['https://w3id.org/pws#query-profile-changes'],
+      run: async (ctx, state) => {
+        const { alice, changesSupported, createCollection, metaUrl, pullPage } =
+          state
+        if (!changesSupported) {
+          ctx.skip('the service description does not advertise changes-query')
+        }
+        if (!state.governedSupported) {
+          ctx.skip('the server does not advertise governed-history-logs')
+        }
+        const targetCollectionId = await createCollection()
+        const url = metaUrl(targetCollectionId, 'log')
+
+        /**
+         * Writes the log body under the given precondition headers.
+         *
+         * @param options {object}
+         * @param options.body {string}
+         * @param options.headers {object}
+         * @returns {Promise<string>} the response's `ETag`
+         */
+        async function writeLog({
+          body,
+          headers
+        }: {
+          body: string
+          headers: Record<string, string>
+        }): Promise<string> {
+          const response = await alice.rootClient.request({
+            url,
+            method: 'PUT',
+            action: 'PUT',
+            headers: { 'content-type': 'text/jsonl', ...headers },
+            body: new TextEncoder().encode(body)
+          })
+          const etag = response.headers.get('etag')
+          assert.ok(etag, 'expected the log write to return an ETag')
+          return etag
+        }
+
+        // The guarded create takes a position.
+        const before = await pullPage({ collectionId: targetCollectionId })
+        const genesis = logLine({ ordinal: 1, state: oneEpoch })
+        const createdEtag = await writeLog({
+          body: genesis,
+          headers: { 'if-none-match': '*' }
+        })
+        const created = await pullPage({
+          collectionId: targetCollectionId,
+          checkpoint: before.checkpoint
+        })
+        assertPageCheckpoints(created)
+        const first = created.documents.find((doc: any) => doc.kind === 'log')
+        assert.ok(first, 'expected a `log` document after the guarded create')
+        assert.equal(first.id, url)
+        assert.equal(first.deleted, false)
+        assert.equal(first.etag, createdEtag)
+        assert.equal('data' in first, false)
+        assertCommonMembers(first)
+
+        // An append takes a new one, with the append's `ETag`.
+        const appendedEtag = await writeLog({
+          body: genesis + logLine({ ordinal: 2, state: twoEpochs }),
+          headers: { 'if-match': createdEtag }
+        })
+        const appended = await pullPage({
+          collectionId: targetCollectionId,
+          checkpoint: created.checkpoint
+        })
+        const logDocs = appended.documents.filter(
+          (doc: any) => doc.kind === 'log'
+        )
+        assert.equal(logDocs.length, 1)
+        assert.equal(logDocs[0].id, url)
+        assert.equal(logDocs[0].etag, appendedEtag)
+        assert.notEqual(appendedEtag, createdEtag)
       }
     }
   ]

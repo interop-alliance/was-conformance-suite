@@ -154,7 +154,7 @@ async function changeDocumentFor({
     json: { profile: 'changes', limit: 100 }
   })
   const document = response.data.documents.find(
-    (doc: any) => doc.id === resourceId
+    (doc: any) => doc.kind === 'resource' && doc.id === resourceId
   )
   assert.ok(document, `expected ${resourceId} in the changes feed`)
   return document
@@ -397,7 +397,7 @@ export const writeStampApi: Suite<State> = {
           queryUrl,
           resourceId
         })
-        assert.equal(tombstone._deleted, true)
+        assert.equal(tombstone.deleted, true)
         stampOf(tombstone)
       }
     },

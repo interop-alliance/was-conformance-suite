@@ -665,7 +665,8 @@ export const chunksApi: Suite<State> = {
         assert.equal(initial.status, 200)
         assert.ok(
           initial.data.documents.some(
-            (document: { id: string }) => document.id === resourceId
+            (document: { kind: string; id: string }) =>
+              document.kind === 'resource' && document.id === resourceId
           ),
           'expected the seeded manifest in the initial feed'
         )

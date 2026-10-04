@@ -5,7 +5,7 @@
  * WAS conformance tests -- Collection client-side encryption descriptor.
  */
 import assert from '../harness/assert.js'
-import { assertWriteStamp } from '../helpers.js'
+import { assertResourceWriteResponse, assertWriteStamp } from '../helpers.js'
 import type { Suite } from '../harness/types.js'
 
 import { Collection } from '@interop/was-client'
@@ -395,7 +395,7 @@ export const encryptionDescriptorApi: Suite<State> = {
           body: new TextEncoder().encode(JSON.stringify(edvDocument)),
           headers: { 'content-type': 'application/json' }
         })
-        assert.equal(response.status, 204)
+        assertResourceWriteResponse({ response, created: true })
       }
     },
     {
@@ -454,7 +454,11 @@ export const encryptionDescriptorApi: Suite<State> = {
           action: 'PUT',
           json: { custom: edvDocument }
         })
-        assert.equal(response.status, 204)
+        assertResourceWriteResponse({
+          response,
+          created: false,
+          metaWrite: true
+        })
         // The `/meta` sub-resource carries its own ETag.
         assert.ok(response.headers.get('etag'), 'expected a /meta ETag')
 
@@ -492,7 +496,8 @@ export const encryptionDescriptorApi: Suite<State> = {
         })
         assert.equal(response.status, 200)
         const doc = response.data.documents.find(
-          (entry: any) => entry.id === 'envelope-doc'
+          (entry: any) =>
+            entry.kind === 'resource' && entry.id === 'envelope-doc'
         )
         assert.ok(doc, 'expected the edited resource in the feed')
         assert.deepStrictEqual(doc.custom, edvDocument)

@@ -24,6 +24,7 @@
 import { signCapabilityInvocation } from '@interop/http-signature-zcap-invoke'
 import type { ISigner } from '@interop/data-integrity-core'
 import assert from '../harness/assert.js'
+import { assertResourceWriteResponse } from '../helpers.js'
 import type { Suite } from '../harness/types.js'
 
 interface State {
@@ -290,7 +291,7 @@ export const conditionalRequestsApi: Suite<State> = {
           json: { name: 'v2' },
           headers: { 'if-match': currentEtag }
         })
-        assert.equal(updated.status, 204)
+        assertResourceWriteResponse({ response: updated, created: false })
         assert.notEqual(updated.headers.get('etag'), currentEtag)
 
         const check = await alice.rootClient.request({
@@ -318,7 +319,7 @@ export const conditionalRequestsApi: Suite<State> = {
           json: { name: 'fresh' },
           headers: { 'if-none-match': '*' }
         })
-        assert.equal(created.status, 204)
+        assertResourceWriteResponse({ response: created, created: true })
         assert.match(
           created.headers.get('etag'),
           /^"[^"]+"$/,

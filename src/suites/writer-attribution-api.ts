@@ -160,7 +160,7 @@ export const writerAttributionApi: Suite<State> = {
             json: { profile: 'changes', limit: 1000 }
           })
           const doc1 = changes1.data.documents.find(
-            (doc: any) => doc.id === resourceId
+            (doc: any) => doc.kind === 'resource' && doc.id === resourceId
           )
           assert.ok(doc1, 'expected the written resource in the changes feed')
           assert.equal(doc1.writerId, 'w1')
@@ -201,7 +201,7 @@ export const writerAttributionApi: Suite<State> = {
             json: { profile: 'changes', limit: 1000 }
           })
           const doc2 = changes2.data.documents.find(
-            (doc: any) => doc.id === resourceId
+            (doc: any) => doc.kind === 'resource' && doc.id === resourceId
           )
           assert.ok(doc2, 'expected the cleared resource in the changes feed')
           assert.equal(doc2.writerId, undefined)
@@ -274,13 +274,13 @@ export const writerAttributionApi: Suite<State> = {
           json: { profile: 'changes', limit: 1000 }
         })
         const tombstone = changes.data.documents.find(
-          (doc: any) => doc.id === resourceId
+          (doc: any) => doc.kind === 'resource' && doc.id === resourceId
         )
         assert.ok(
           tombstone,
           'expected the deleted resource in the changes feed'
         )
-        assert.equal(tombstone._deleted, true)
+        assert.equal(tombstone.deleted, true)
         assert.equal(tombstone.writerId, 'w2')
       }
     },

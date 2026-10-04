@@ -341,6 +341,92 @@ export function assertWriteStamp(stamp: Record<string, unknown>): void {
 }
 
 /**
+ * The members a Resource write response body may carry: the server-managed
+ * members of the Resource Metadata object.
+ */
+const WRITE_RESPONSE_MEMBERS = new Set([
+  'contentType',
+  'size',
+  'createdAt',
+  'createdBy',
+  'updatedAt',
+  'updatedAtCounter',
+  'originId',
+  'meta'
+])
+
+/**
+ * Checks the answer to a Resource write: Create or Update Resource by id, or
+ * Update Resource Metadata. A content write answers `201` when it created the
+ * Resource and `200` when it updated it. A metadata write never creates, so it
+ * answers `200`. A server MAY answer `204` with no body instead. A `2xx` that
+ * carries a body carries only the server-managed members: `contentType`,
+ * `size`, and the write stamp always, `createdAt` and `createdBy` only on a
+ * `201`, and the `/meta` record's stamp under `meta` only on a metadata write.
+ *
+ * @param options {object}
+ * @param options.response {any}   the write's response
+ * @param options.created {boolean}   whether the write creates the Resource
+ * @param [options.metaWrite] {boolean}   whether it is a metadata write
+ */
+export function assertResourceWriteResponse({
+  response,
+  created,
+  metaWrite = false
+}: {
+  response: any
+  created: boolean
+  metaWrite?: boolean
+}): void {
+  const success = created ? 201 : 200
+  assert.ok(
+    response.status === success || response.status === 204,
+    `expected ${success} or 204, got ${response.status}`
+  )
+  const body = response.data
+  if (response.status === 204 || body === undefined || body === '') {
+    return
+  }
+  assert.match(
+    response.headers.get('content-type') ?? '',
+    /application\/json/,
+    'expected a JSON write response body'
+  )
+  assert.ok(
+    body && typeof body === 'object' && !Array.isArray(body),
+    'expected the write response body to be a JSON object'
+  )
+  for (const member of Object.keys(body)) {
+    assert.ok(
+      WRITE_RESPONSE_MEMBERS.has(member),
+      `unexpected member \`${member}\` in the write response body`
+    )
+  }
+  assert.equal(typeof body.contentType, 'string', 'expected `contentType`')
+  assert.ok(
+    Number.isInteger(body.size) && body.size >= 0,
+    '`size` must be a non-negative integer'
+  )
+  assertWriteStamp(body)
+  if (response.status === 201) {
+    assert.equal(typeof body.createdAt, 'string', 'expected `createdAt`')
+  } else {
+    assert.equal(body.createdAt, undefined, '`createdAt` only on a 201')
+    assert.equal(body.createdBy, undefined, '`createdBy` only on a 201')
+  }
+  if (metaWrite) {
+    assertWriteStamp(body.meta ?? {})
+    assert.equal(
+      typeof body.meta.generation,
+      'string',
+      'expected the `meta` generation'
+    )
+  } else {
+    assert.equal(body.meta, undefined, '`meta` only on a metadata write')
+  }
+}
+
+/**
  * Checks the server-derived `backends` member of a Space Metadata object and
  * returns the object without it, for an exact-shape comparison of the rest.
  * The member is OPTIONAL (spec "Space Metadata Data Model"). A server that

@@ -1,5 +1,35 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.29.0 - TBD
+
+### Added
+
+- `changes-query-api` cases for the widened `changes` feed:
+  `changes.kind-on-every-document`, `changes.deleted-member`,
+  `changes.document-stamp-generation-etag`,
+  `changes.non-json-resource-and-tombstone`,
+  `changes.collection-metadata-document`, `changes.mixed-kind-paging`, and
+  `changes.log-document` (skipped unless the server advertises
+  `governed-history-logs`).
+
+### Changed
+
+- Change documents carry `deleted` in place of `_deleted`, and every case that
+  reads the feed looks up Resources by `kind === 'resource'`.
+- `changes.live-docs-tombstone-checkpoint` also checks `contentType` on the live
+  document and the tombstone.
+- `changes.concurrent-writes-not-skipped` pages from the checkpoint past the
+  Collection's own `collection-metadata` document.
+- Resource writes accept `201` on a create, `200` on an update or a metadata
+  write, or `204`. A `2xx` body must hold only the server-managed members:
+  `contentType`, `size`, and the write stamp, `createdAt` and `createdBy` only
+  on a `201`, and `meta` only on a metadata write. This covers
+  `resource.put-get`, `resource.put-upsert`,
+  `resource.putmeta-ignores-server-managed`,
+  `conditional.current-if-match-succeeds`,
+  `conditional.if-none-match-create-succeeds`,
+  `encryption.accepts-edv-document`, and `encryption.envelope-meta-etag`.
+
 ## 0.28.0 - 2026-10-03
 
 ### Added
