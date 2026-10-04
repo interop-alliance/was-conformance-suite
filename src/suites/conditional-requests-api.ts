@@ -171,8 +171,8 @@ export const conditionalRequestsApi: Suite<State> = {
         const { alice, collectionUrl } = state
         const resourceUrl = `${collectionUrl}stale-if-match`
 
-        // Create (version 1) then update (version 2): the ETag the client
-        // captured at version 1 is now stale.
+        // Create (first write) then update (second write): the ETag the
+        // client captured at the first write is now stale.
         const created = await alice.rootClient.request({
           url: resourceUrl,
           method: 'PUT',
@@ -204,7 +204,7 @@ export const conditionalRequestsApi: Suite<State> = {
         }
         assertPreconditionFailed(expectedError)
 
-        // The stored content is unchanged: still the version-2 write.
+        // The stored content is unchanged: still the second write.
         const check = await alice.rootClient.request({
           url: resourceUrl,
           method: 'GET'

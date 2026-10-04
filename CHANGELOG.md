@@ -1,5 +1,41 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.28.0 - TBD
+
+### Added
+
+- `write-stamp-api` suite: every versioned record (Space, Collection, and
+  Resource Metadata objects, change documents) carries the write stamp
+  (`updatedAt`, `updatedAtCounter`, `originId`); a metadata write adds the
+  nested `meta` stamp; create echoes carry the stamp the following read returns;
+  each `ETag` is one opaque strong validator that changes on every write,
+  identical bodies and metadata-only writes included; the service description's
+  `originId` matches the records (optional).
+- `writer-attribution.meta-put-member-ignored`: a top-level `writerId` member on
+  Update Resource Metadata is accepted and leaves the content write's label
+  untouched.
+- `withoutWriteStamp` and `assertWriteStamp` helpers (exported).
+
+### Changed
+
+- The seven exact-shape cases on Space and Collection Metadata objects and their
+  create echoes admit the stamp members: `spaces.create-and-read`,
+  `space.create-post`, `space.read-authorized`, `space.read-delegated`,
+  `collections.create-and-describe`, `collection.create-post`,
+  `collection.read-metadata`. `collection.create-post` also expects the echo to
+  carry `createdAt` and `linkset`, the same object the following read returns.
+- `encryption.replicates-metadata-changes` reads the nested `meta` stamp off the
+  change document in place of `metaVersion`.
+- Remaining `version` / `metaVersion` wording in case names and comments uses
+  the stamp vocabulary.
+
+### Removed
+
+- `writer-attribution.meta-put-member-declares-and-clears`,
+  `writer-attribution.invalid-meta-member-empty-400`, and
+  `writer-attribution.invalid-meta-member-type-400`: the declare-or-clear rule
+  for a `writerId` member on Update Resource Metadata was withdrawn.
+
 ## 0.27.0 - 2026-10-01
 
 ### Added

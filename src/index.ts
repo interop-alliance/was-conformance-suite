@@ -17,6 +17,8 @@ export {
   provisionSpace,
   wasClient,
   withoutCreatedBy,
+  withoutWriteStamp,
+  assertWriteStamp,
   zcapClient
 } from './helpers.js'
 export * from './suites/index.js'

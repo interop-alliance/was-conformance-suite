@@ -11,7 +11,7 @@
  */
 import assert from '../harness/assert.js'
 import type { Suite } from '../harness/types.js'
-import { checkBackendsMember } from '../helpers.js'
+import { checkBackendsMember, withoutWriteStamp } from '../helpers.js'
 
 import { NotFoundError } from '@interop/was-client'
 import type { Space } from '@interop/was-client'
@@ -96,8 +96,9 @@ export const clientSpaces: Suite<State> = {
           readListing: () => space.backends()
         })
         // A Space is a container, so its `url` carries the canonical
-        // trailing slash (spec "Space Metadata Data Model").
-        assert.deepStrictEqual(withoutCreatedBy(rest), {
+        // trailing slash (spec "Space Metadata Data Model"). The write stamp
+        // members are checked for shape, not exact value.
+        assert.deepStrictEqual(withoutCreatedBy(withoutWriteStamp(rest)), {
           id: space.id,
           type: ['Space'],
           name: 'Home',
@@ -213,18 +214,16 @@ export const clientSpaces: Suite<State> = {
         })
         assert.equal(collection.id, 'credentials')
         // A Collection is a container too, so its `url` also carries the
-        // canonical trailing slash. `createdAt`/`updatedAt` are dynamic (spec
-        // "Collection Metadata Data Model", OPTIONAL server-managed
-        // timestamps -- now part of the merged object); `etag` is a
-        // client-side convenience the wire body never carries (spec: the
-        // validator is surfaced only as the `ETag` header). All three are
-        // checked for shape, not exact value.
-        const described = withoutCreatedBy(
-          await collection.describe()
-        ) as Record<string, unknown>
-        const { createdAt, updatedAt, etag: _etag, ...rest } = described
+        // canonical trailing slash. `createdAt` and the write stamp
+        // (`updatedAt`, `updatedAtCounter`, `originId`) are dynamic, so they
+        // are checked for shape, not exact value. `etag` is a client-side
+        // convenience the wire body never carries (spec: the validator is
+        // surfaced only as the `ETag` header).
+        const described = withoutWriteStamp(
+          withoutCreatedBy(await collection.describe())
+        )
+        const { createdAt, etag: _etag, ...rest } = described
         assert.match(createdAt as string, /^\d{4}-\d{2}-\d{2}T/)
-        assert.match(updatedAt as string, /^\d{4}-\d{2}-\d{2}T/)
         assert.deepStrictEqual(rest, {
           id: 'credentials',
           type: ['Collection'],

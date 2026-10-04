@@ -147,6 +147,7 @@ The available suite ids (for `--suite`) are:
 | `resource-api`              | Resource API                                            |
 | `server`                    | Server                                                  |
 | `spaces-api`                | Spaces                                                  |
+| `write-stamp-api`           | Write stamps and validators                             |
 | `write-validation-api`      | Write-validation negatives (reserved ids, Content-Type) |
 | `writer-attribution-api`    | Writer attribution (`writerId`)                         |
 

@@ -6,7 +6,7 @@
  */
 import assert from '../harness/assert.js'
 import type { ConformanceContext, Suite } from '../harness/types.js'
-import { checkBackendsMember } from '../helpers.js'
+import { checkBackendsMember, withoutWriteStamp } from '../helpers.js'
 
 interface State {
   alice: any
@@ -831,8 +831,9 @@ export const spacesApi: Suite<State> = {
             })
         })
         // The container `url` is the canonical trailing-slash form (spec
-        // "Space Metadata Data Model").
-        assert.deepStrictEqual(withoutCreatedBy(rest), {
+        // "Space Metadata Data Model"). The echo carries the write stamp
+        // (`updatedAt`, `updatedAtCounter`, `originId`).
+        assert.deepStrictEqual(withoutCreatedBy(withoutWriteStamp(rest)), {
           id: freshSpaceId,
           name: 'Conformance Test Space',
           type: ['Space'],
@@ -1219,7 +1220,7 @@ export const spacesApi: Suite<State> = {
               rootClient: alice.rootClient
             })
         })
-        assert.deepStrictEqual(withoutCreatedBy(rest), {
+        assert.deepStrictEqual(withoutCreatedBy(withoutWriteStamp(rest)), {
           id: alice.space1.id,
           name: "Alice's Space #1 (Home)",
           type: ['Space'],
@@ -1272,7 +1273,7 @@ export const spacesApi: Suite<State> = {
               rootClient: alice.rootClient
             })
         })
-        assert.deepStrictEqual(withoutCreatedBy(rest), {
+        assert.deepStrictEqual(withoutCreatedBy(withoutWriteStamp(rest)), {
           id: alice.space1.id,
           name: "Alice's Space #1 (Home)",
           type: ['Space'],

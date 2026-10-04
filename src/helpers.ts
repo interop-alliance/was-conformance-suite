@@ -292,6 +292,55 @@ export function withoutCreatedBy(value: unknown): unknown {
 }
 
 /**
+ * Checks the write stamp a versioned record carries (`updatedAt`,
+ * `updatedAtCounter`, `originId`) and returns the record without it, for an
+ * exact-shape comparison of the rest. Every write mints the stamp at the origin
+ * store: `updatedAt` is an RFC 3339 `date-time`, `updatedAtCounter` a
+ * non-negative integer that ticks when the millisecond did not advance, and
+ * `originId` the minting store's id, matching `[A-Za-z0-9_-]{1,64}`.
+ *
+ * @param value {unknown}   a Space, Collection, or Resource Metadata object,
+ *   or a change document
+ * @returns {Record<string, unknown>}   the record minus the three members
+ */
+export function withoutWriteStamp(value: unknown): Record<string, unknown> {
+  assert.ok(value && typeof value === 'object', 'expected a record object')
+  const { updatedAt, updatedAtCounter, originId, ...rest } = value as Record<
+    string,
+    unknown
+  >
+  assertWriteStamp({ updatedAt, updatedAtCounter, originId })
+  return rest
+}
+
+/**
+ * Asserts the three write-stamp members are present and well-formed.
+ *
+ * @param stamp {object}   the stamp members read off a record
+ */
+export function assertWriteStamp(stamp: Record<string, unknown>): void {
+  assert.equal(
+    typeof stamp.updatedAt,
+    'string',
+    'expected a string `updatedAt` stamp member'
+  )
+  assert.ok(
+    !Number.isNaN(Date.parse(stamp.updatedAt as string)),
+    '`updatedAt` must be an RFC 3339 date-time'
+  )
+  assert.ok(
+    Number.isInteger(stamp.updatedAtCounter) &&
+      (stamp.updatedAtCounter as number) >= 0,
+    '`updatedAtCounter` must be a non-negative integer'
+  )
+  assert.ok(
+    typeof stamp.originId === 'string' &&
+      /^[A-Za-z0-9_-]{1,64}$/.test(stamp.originId),
+    '`originId` must match [A-Za-z0-9_-]{1,64}'
+  )
+}
+
+/**
  * Checks the server-derived `backends` member of a Space Metadata object and
  * returns the object without it, for an exact-shape comparison of the rest.
  * The member is OPTIONAL (spec "Space Metadata Data Model"). A server that

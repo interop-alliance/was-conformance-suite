@@ -18,10 +18,10 @@
  * test.
  *
  * A content write (`PUT` or `POST`) and a `DELETE` declare the label via the
- * `Writer-Id` request header; an Update Resource Metadata request (`PUT
- * .../meta`) declares it via a top-level `writerId` member. Every write is
- * declare-or-clear: an absent header or member clears the stored label
- * rather than preserving it.
+ * `Writer-Id` request header. They are declare-or-clear: an absent header
+ * clears the stored label rather than preserving it. An Update Resource
+ * Metadata request (`PUT .../meta`) leaves the label untouched, and a
+ * `writerId` member in its body is not read.
  */
 import assert from '../harness/assert.js'
 import { serviceFeatures } from '../harness/serviceDescription.js'
@@ -285,10 +285,10 @@ export const writerAttributionApi: Suite<State> = {
       }
     },
     {
-      id: 'writer-attribution.meta-put-member-declares-and-clears',
+      id: 'writer-attribution.meta-put-member-ignored',
       name:
-        '[root] Update Resource Metadata declares `writerId` via a ' +
-        'top-level member; omitting it clears the stored label',
+        '[root] a top-level `writerId` member on Update Resource Metadata ' +
+        "is ignored: accepted, and the content write's label is left untouched",
       specRefs: [
         'https://w3id.org/pws#writer-attribution',
         'https://w3id.org/pws#update-resource-metadata-operation'
@@ -304,34 +304,33 @@ export const writerAttributionApi: Suite<State> = {
           url,
           method: 'PUT',
           action: 'PUT',
-          json: { id: resourceId }
+          json: { id: resourceId },
+          headers: { 'writer-id': 'w5' }
         })
 
-        await alice.rootClient.request({
-          url: `${url}/meta`,
-          method: 'PUT',
-          action: 'PUT',
-          json: { writerId: 'w5' }
-        })
-        const meta1 = await alice.rootClient.request({
-          url: `${url}/meta`,
-          method: 'GET'
-        })
-        assert.equal(meta1.data.writerId, 'w5')
-
-        // A metadata write is itself a revision: omitting `writerId` CLEARS
-        // it, unlike `epoch`, which a metadata write preserves on omission.
-        await alice.rootClient.request({
-          url: `${url}/meta`,
-          method: 'PUT',
-          action: 'PUT',
-          json: { custom: {} }
-        })
-        const meta2 = await alice.rootClient.request({
-          url: `${url}/meta`,
-          method: 'GET'
-        })
-        assert.equal(meta2.data.writerId, undefined)
+        // The server does not read a `writerId` member: any value, even one
+        // a header would reject, is accepted and leaves the label as is.
+        for (const json of [
+          { custom: {}, writerId: 'other' },
+          { writerId: '' },
+          { writerId: 123 }
+        ]) {
+          const response = await alice.rootClient.request({
+            url: `${url}/meta`,
+            method: 'PUT',
+            action: 'PUT',
+            json
+          })
+          assert.ok(
+            response.status === 204 || response.status === 200,
+            `expected 204 or 200 for ${JSON.stringify(json)}, got ${response.status}`
+          )
+          const meta = await alice.rootClient.request({
+            url: `${url}/meta`,
+            method: 'GET'
+          })
+          assert.equal(meta.data.writerId, 'w5')
+        }
       }
     },
     {
@@ -358,96 +357,6 @@ export const writerAttributionApi: Suite<State> = {
           expectedError = err
         }
         assert.ok(expectedError, 'expected the empty header to be rejected')
-        assert.equal(expectedError.response.status, 400)
-        assert.equal(
-          expectedError.data.type,
-          'https://w3id.org/pws#invalid-request-body'
-        )
-      }
-    },
-    {
-      id: 'writer-attribution.invalid-meta-member-empty-400',
-      name:
-        '[root] an empty-string top-level `writerId` member is ' +
-        'invalid-request-body (400)',
-      specRefs: [
-        'https://w3id.org/pws#writer-attribution',
-        'https://w3id.org/pws#update-resource-metadata-operation'
-      ],
-      run: async (ctx, state) => {
-        const { alice, metadataSupported } = state
-        if (!metadataSupported) {
-          ctx.skip('the service description does not advertise metadata')
-        }
-        const resourceId = ctx.generateId()
-        const url = state.resourceUrl(resourceId)
-        await alice.rootClient.request({
-          url,
-          method: 'PUT',
-          action: 'PUT',
-          json: { id: resourceId }
-        })
-
-        let expectedError: any
-        try {
-          await alice.rootClient.request({
-            url: `${url}/meta`,
-            method: 'PUT',
-            action: 'PUT',
-            json: { writerId: '' }
-          })
-        } catch (err) {
-          expectedError = err
-        }
-        assert.ok(
-          expectedError,
-          'expected the empty-string writerId member to be rejected'
-        )
-        assert.equal(expectedError.response.status, 400)
-        assert.equal(
-          expectedError.data.type,
-          'https://w3id.org/pws#invalid-request-body'
-        )
-      }
-    },
-    {
-      id: 'writer-attribution.invalid-meta-member-type-400',
-      name:
-        '[root] a non-string top-level `writerId` member is ' +
-        'invalid-request-body (400)',
-      specRefs: [
-        'https://w3id.org/pws#writer-attribution',
-        'https://w3id.org/pws#update-resource-metadata-operation'
-      ],
-      run: async (ctx, state) => {
-        const { alice, metadataSupported } = state
-        if (!metadataSupported) {
-          ctx.skip('the service description does not advertise metadata')
-        }
-        const resourceId = ctx.generateId()
-        const url = state.resourceUrl(resourceId)
-        await alice.rootClient.request({
-          url,
-          method: 'PUT',
-          action: 'PUT',
-          json: { id: resourceId }
-        })
-
-        let expectedError: any
-        try {
-          await alice.rootClient.request({
-            url: `${url}/meta`,
-            method: 'PUT',
-            action: 'PUT',
-            json: { writerId: 123 }
-          })
-        } catch (err) {
-          expectedError = err
-        }
-        assert.ok(
-          expectedError,
-          'expected the non-string writerId member to be rejected'
-        )
         assert.equal(expectedError.response.status, 400)
         assert.equal(
           expectedError.data.type,

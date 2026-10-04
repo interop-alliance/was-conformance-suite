@@ -5,6 +5,7 @@
  * WAS conformance tests -- Collection client-side encryption descriptor.
  */
 import assert from '../harness/assert.js'
+import { assertWriteStamp } from '../helpers.js'
 import type { Suite } from '../harness/types.js'
 
 import { Collection } from '@interop/was-client'
@@ -435,7 +436,7 @@ export const encryptionDescriptorApi: Suite<State> = {
     },
     {
       id: 'encryption.envelope-meta-etag',
-      name: '[root] accepts an envelope `custom` on PUT /meta and returns its metaVersion ETag',
+      name: '[root] accepts an envelope `custom` on PUT /meta and returns its /meta ETag',
       optional: true,
       specRefs: [
         'https://w3id.org/pws#update-resource-metadata-operation',
@@ -454,7 +455,7 @@ export const encryptionDescriptorApi: Suite<State> = {
           json: { custom: edvDocument }
         })
         assert.equal(response.status, 204)
-        // The `/meta` sub-resource carries its own ETag (`metaVersion`).
+        // The `/meta` sub-resource carries its own ETag.
         assert.ok(response.headers.get('etag'), 'expected a /meta ETag')
 
         // GET /meta returns the opaque envelope verbatim (no plaintext name leaked).
@@ -476,9 +477,10 @@ export const encryptionDescriptorApi: Suite<State> = {
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice } = state
-        // Decision 6: a metadata-only edit rides the change feed -- the resource
-        // re-surfaces carrying the opaque `custom` envelope and a `metaVersion`, so a
-        // replicating client picks up the metadata change without decryption.
+        // Decision 6: a metadata-only edit rides the change feed. The resource
+        // re-surfaces carrying the opaque `custom` envelope and its metadata
+        // stamp (`meta`), so a replicating client picks up the metadata
+        // change without decryption.
         const response = await alice.rootClient.request({
           url: new URL(
             `/space/${alice.space1.id}/vault/query`,
@@ -494,7 +496,9 @@ export const encryptionDescriptorApi: Suite<State> = {
         )
         assert.ok(doc, 'expected the edited resource in the feed')
         assert.deepStrictEqual(doc.custom, edvDocument)
-        assert.equal(typeof doc.metaVersion, 'number')
+        assert.ok(doc.meta && typeof doc.meta === 'object')
+        assertWriteStamp(doc.meta)
+        assert.equal(typeof doc.meta.generation, 'string')
       }
     },
     {

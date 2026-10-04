@@ -671,7 +671,7 @@ export const chunksApi: Suite<State> = {
         )
         const checkpoint = initial.data.checkpoint
 
-        // A chunk write and a chunk delete bump only the chunk's own version:
+        // A chunk write and a chunk delete advance only the chunk's own ETag:
         // neither MUST touch the parent Resource's feed position.
         for (const index of [0, 1]) {
           await alice.rootClient.request({

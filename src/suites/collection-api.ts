@@ -8,6 +8,7 @@ import { signCapabilityInvocation } from '@interop/http-signature-zcap-invoke'
 import type { ISigner } from '@interop/data-integrity-core'
 import type { IZcap } from '@interop/data-integrity-core/zcap'
 import assert from '../harness/assert.js'
+import { withoutWriteStamp } from '../helpers.js'
 import type { Suite } from '../harness/types.js'
 
 interface State {
@@ -101,7 +102,7 @@ async function metaRequestOrSkip({
  * `PUT` of its Metadata object -- the v0.5 create-by-id path, now that `PUT`
  * at the bare Collection URL is retired (405). Returns its container URL and
  * its `/meta` URL. Every Collection Metadata test works on its own
- * Collection, so the `metaVersion` sequence a test observes is its own.
+ * Collection, so the stamp sequence a test observes is its own.
  *
  * @param options {object}
  * @param options.ctx {any}   the test context (for `serverUrl` / `generateId` / `skip`)
@@ -235,12 +236,19 @@ export const collectionApi: Suite<State> = {
         assert.equal(response.status, 201)
         // The Collection's `url` is stamped in its canonical trailing-slash
         // (container) form, matching a subsequent Read Collection Metadata.
-        assert.deepStrictEqual(withoutCreatedBy(response.data), {
+        // The echo is the full Collection Metadata object, so it also
+        // carries `createdAt`, the write stamp, and `linkset`.
+        const { createdAt, ...echo } = withoutWriteStamp(
+          withoutCreatedBy(response.data)
+        )
+        assert.ok(!Number.isNaN(Date.parse(createdAt as string)))
+        assert.deepStrictEqual(echo, {
           id: 'credentials',
           name: 'Verifiable Credentials',
           type: ['Collection'],
           backend: { id: 'default' },
-          url: `/space/${alice.space1.id}/credentials/`
+          url: `/space/${alice.space1.id}/credentials/`,
+          linkset: `/space/${alice.space1.id}/credentials/linkset`
         })
         assert.match(response.headers.get('content-type'), /application\/json/)
         assert.equal(
@@ -328,11 +336,11 @@ export const collectionApi: Suite<State> = {
           method: 'GET'
         })
         assert.equal(response.status, 200)
-        const { createdAt, updatedAt, ...rest } = withoutCreatedBy(
-          response.data
-        ) as any
-        assert.ok(!Number.isNaN(Date.parse(createdAt)))
-        assert.ok(!Number.isNaN(Date.parse(updatedAt)))
+        // `updatedAt` belongs to the write stamp, checked with the rest of it.
+        const { createdAt, ...rest } = withoutWriteStamp(
+          withoutCreatedBy(response.data)
+        )
+        assert.ok(!Number.isNaN(Date.parse(createdAt as string)))
         assert.deepStrictEqual(rest, {
           id: 'credentials',
           name: 'Verifiable Credentials',
@@ -748,8 +756,8 @@ export const collectionApi: Suite<State> = {
         })
         assert.equal(response.status, 200)
         assert.match(response.headers.get('content-type'), /application\/json/)
-        // `metaVersion` is an out-of-band validator (the ETag), never a member
-        // of the Metadata body.
+        // The validator is the ETag, carried out of band. The retired
+        // `metaVersion` counter is not a member of the Metadata body.
         assert.equal(response.data.metaVersion, undefined)
 
         // An anonymous (unsigned) meta read must not leak existence: the
@@ -1073,9 +1081,9 @@ export const collectionApi: Suite<State> = {
         const { alice } = state
         // v0.5 merges what used to be two independent validators (the
         // Collection description's and the `/meta` annotation object's) into
-        // the one Collection Metadata object's `metaVersion`, so a
-        // configuration write and an annotation write now advance the SAME
-        // ETag rather than independent ones.
+        // the one Collection Metadata object's ETag, so a configuration
+        // write and an annotation write now advance the SAME ETag rather
+        // than independent ones.
         const { metaUrl } = await freshCollection({ ctx, alice })
         const created = await metaRequestOrSkip({
           ctx,

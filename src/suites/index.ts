@@ -28,6 +28,7 @@ import { resourceApi } from './resource-api.js'
 import { serviceDescriptionApi } from './service-description-api.js'
 import { server } from './server.js'
 import { spacesApi } from './spaces-api.js'
+import { writeStampApi } from './write-stamp-api.js'
 import { writeValidationApi } from './write-validation-api.js'
 import { writerAttributionApi } from './writer-attribution-api.js'
 
@@ -61,6 +62,7 @@ export const suites: Array<Suite<any>> = [
   serviceDescriptionApi,
   server,
   spacesApi,
+  writeStampApi,
   writeValidationApi,
   writerAttributionApi
 ]
@@ -91,6 +93,7 @@ export {
   serviceDescriptionApi,
   server,
   spacesApi,
+  writeStampApi,
   writeValidationApi,
   writerAttributionApi
 }
