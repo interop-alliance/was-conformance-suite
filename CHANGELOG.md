@@ -1,5 +1,24 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.29.1 - TBD
+
+### Changed
+
+- The Space Metadata comparisons accept an optional `replicas` member, checked
+  for shape when present. This covers `spaces.create-and-read`,
+  `space.create-post`, `space.read-authorized`, and `space.read-delegated`.
+- The Collection Metadata comparisons accept an optional `created` member,
+  checked as a write stamp when present. This covers
+  `collections.create-and-describe`, `collection.create-post`, and
+  `collection.read-metadata`.
+- New exported helpers `withoutReplicas` and `withoutCreatingStamp`.
+
+### Removed
+
+- `reserved-methods.collection-query-get`. A server that replicates Spaces
+  serves `GET /space/:s/:c/query` as the read-only form of the `changes` feed,
+  so the method is no longer one every server refuses.
+
 ## 0.29.0 - 2026-10-04
 
 ### Added

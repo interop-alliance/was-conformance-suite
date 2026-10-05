@@ -407,18 +407,6 @@ const RESERVED_ENDPOINT_CHECKS: ReservedEndpointCheck[] = [
     ]
   },
   {
-    id: 'reserved-methods.collection-query-get',
-    name: '[root] GET /space/:s/:c/query is refused (405)',
-    level: 'collection',
-    segment: 'query',
-    methods: ['GET'],
-    tolerate501: true,
-    specRefs: [
-      'https://w3id.org/pws#query-profile-registry',
-      'https://w3id.org/pws#methods-at-reserved-endpoints'
-    ]
-  },
-  {
     id: 'reserved-methods.collection-quota-put',
     name: '[root] PUT /space/:s/:c/quota is refused (405)',
     level: 'collection',

@@ -17,6 +17,8 @@ export {
   provisionSpace,
   wasClient,
   withoutCreatedBy,
+  withoutCreatingStamp,
+  withoutReplicas,
   withoutWriteStamp,
   assertWriteStamp,
   zcapClient

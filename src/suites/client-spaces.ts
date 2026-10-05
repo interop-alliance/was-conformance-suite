@@ -11,7 +11,12 @@
  */
 import assert from '../harness/assert.js'
 import type { Suite } from '../harness/types.js'
-import { checkBackendsMember, withoutWriteStamp } from '../helpers.js'
+import {
+  checkBackendsMember,
+  withoutCreatingStamp,
+  withoutReplicas,
+  withoutWriteStamp
+} from '../helpers.js'
 
 import { NotFoundError } from '@interop/was-client'
 import type { Space } from '@interop/was-client'
@@ -98,14 +103,17 @@ export const clientSpaces: Suite<State> = {
         // A Space is a container, so its `url` carries the canonical
         // trailing slash (spec "Space Metadata Data Model"). The write stamp
         // members are checked for shape, not exact value.
-        assert.deepStrictEqual(withoutCreatedBy(withoutWriteStamp(rest)), {
-          id: space.id,
-          type: ['Space'],
-          name: 'Home',
-          controller: alice.did,
-          url: `/space/${space.id}/`,
-          linkset: `/space/${space.id}/linkset`
-        })
+        assert.deepStrictEqual(
+          withoutCreatedBy(withoutReplicas(withoutWriteStamp(rest))),
+          {
+            id: space.id,
+            type: ['Space'],
+            name: 'Home',
+            controller: alice.did,
+            url: `/space/${space.id}/`,
+            linkset: `/space/${space.id}/linkset`
+          }
+        )
       }
     },
     {
@@ -219,8 +227,8 @@ export const clientSpaces: Suite<State> = {
         // are checked for shape, not exact value. `etag` is a client-side
         // convenience the wire body never carries (spec: the validator is
         // surfaced only as the `ETag` header).
-        const described = withoutWriteStamp(
-          withoutCreatedBy(await collection.describe())
+        const described = withoutCreatingStamp(
+          withoutWriteStamp(withoutCreatedBy(await collection.describe()))
         )
         const { createdAt, etag: _etag, ...rest } = described
         assert.match(createdAt as string, /^\d{4}-\d{2}-\d{2}T/)

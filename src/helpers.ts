@@ -314,6 +314,52 @@ export function withoutWriteStamp(value: unknown): Record<string, unknown> {
 }
 
 /**
+ * Checks the `replicas` member of a Space Metadata object, when the server
+ * sends one, and returns the object without it, for an exact-shape comparison
+ * of the rest. The member is server-derived and OPTIONAL: a server that
+ * replicates Spaces lists each replica registration there as `fromSpace`,
+ * `toSpace`, and `role`, and a server that does not omits it.
+ *
+ * @param value {unknown}   a Space Metadata object
+ * @returns {Record<string, unknown>}   the object minus `replicas`
+ */
+export function withoutReplicas(value: unknown): Record<string, unknown> {
+  assert.ok(value && typeof value === 'object', 'expected a record object')
+  const { replicas, ...rest } = value as Record<string, unknown>
+  if (replicas !== undefined) {
+    assert.ok(Array.isArray(replicas), '`replicas` must be an array')
+    for (const replica of replicas as Record<string, unknown>[]) {
+      assert.equal(typeof replica.fromSpace, 'string')
+      assert.equal(typeof replica.toSpace, 'string')
+      assert.equal(typeof replica.role, 'string')
+    }
+  }
+  return rest
+}
+
+/**
+ * Checks the `created` member of a Collection Metadata object, when the server
+ * sends one, and returns the object without it, for an exact-shape comparison
+ * of the rest. The member is server-managed and OPTIONAL: it is the write
+ * stamp of the write that created the Collection.
+ *
+ * @param value {unknown}   a Collection Metadata object
+ * @returns {Record<string, unknown>}   the object minus `created`
+ */
+export function withoutCreatingStamp(value: unknown): Record<string, unknown> {
+  assert.ok(value && typeof value === 'object', 'expected a record object')
+  const { created, ...rest } = value as Record<string, unknown>
+  if (created !== undefined) {
+    assert.ok(
+      created && typeof created === 'object',
+      '`created` must be a write stamp object'
+    )
+    assertWriteStamp(created as Record<string, unknown>)
+  }
+  return rest
+}
+
+/**
  * Asserts the three write-stamp members are present and well-formed.
  *
  * @param stamp {object}   the stamp members read off a record

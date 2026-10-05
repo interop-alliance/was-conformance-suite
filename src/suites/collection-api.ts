@@ -8,7 +8,7 @@ import { signCapabilityInvocation } from '@interop/http-signature-zcap-invoke'
 import type { ISigner } from '@interop/data-integrity-core'
 import type { IZcap } from '@interop/data-integrity-core/zcap'
 import assert from '../harness/assert.js'
-import { withoutWriteStamp } from '../helpers.js'
+import { withoutCreatingStamp, withoutWriteStamp } from '../helpers.js'
 import type { Suite } from '../harness/types.js'
 
 interface State {
@@ -238,8 +238,8 @@ export const collectionApi: Suite<State> = {
         // (container) form, matching a subsequent Read Collection Metadata.
         // The echo is the full Collection Metadata object, so it also
         // carries `createdAt`, the write stamp, and `linkset`.
-        const { createdAt, ...echo } = withoutWriteStamp(
-          withoutCreatedBy(response.data)
+        const { createdAt, ...echo } = withoutCreatingStamp(
+          withoutWriteStamp(withoutCreatedBy(response.data))
         )
         assert.ok(!Number.isNaN(Date.parse(createdAt as string)))
         assert.deepStrictEqual(echo, {
@@ -337,8 +337,8 @@ export const collectionApi: Suite<State> = {
         })
         assert.equal(response.status, 200)
         // `updatedAt` belongs to the write stamp, checked with the rest of it.
-        const { createdAt, ...rest } = withoutWriteStamp(
-          withoutCreatedBy(response.data)
+        const { createdAt, ...rest } = withoutCreatingStamp(
+          withoutWriteStamp(withoutCreatedBy(response.data))
         )
         assert.ok(!Number.isNaN(Date.parse(createdAt as string)))
         assert.deepStrictEqual(rest, {

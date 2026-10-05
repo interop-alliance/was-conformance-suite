@@ -6,7 +6,11 @@
  */
 import assert from '../harness/assert.js'
 import type { ConformanceContext, Suite } from '../harness/types.js'
-import { checkBackendsMember, withoutWriteStamp } from '../helpers.js'
+import {
+  checkBackendsMember,
+  withoutReplicas,
+  withoutWriteStamp
+} from '../helpers.js'
 
 interface State {
   alice: any
@@ -833,14 +837,17 @@ export const spacesApi: Suite<State> = {
         // The container `url` is the canonical trailing-slash form (spec
         // "Space Metadata Data Model"). The echo carries the write stamp
         // (`updatedAt`, `updatedAtCounter`, `originId`).
-        assert.deepStrictEqual(withoutCreatedBy(withoutWriteStamp(rest)), {
-          id: freshSpaceId,
-          name: 'Conformance Test Space',
-          type: ['Space'],
-          controller: alice.did,
-          url: `/space/${freshSpaceId}/`,
-          linkset: `/space/${freshSpaceId}/linkset`
-        })
+        assert.deepStrictEqual(
+          withoutCreatedBy(withoutReplicas(withoutWriteStamp(rest))),
+          {
+            id: freshSpaceId,
+            name: 'Conformance Test Space',
+            type: ['Space'],
+            controller: alice.did,
+            url: `/space/${freshSpaceId}/`,
+            linkset: `/space/${freshSpaceId}/linkset`
+          }
+        )
         assert.match(response.headers.get('content-type')!, /application\/json/)
         assert.equal(
           response.headers.get('location'),
@@ -1220,14 +1227,17 @@ export const spacesApi: Suite<State> = {
               rootClient: alice.rootClient
             })
         })
-        assert.deepStrictEqual(withoutCreatedBy(withoutWriteStamp(rest)), {
-          id: alice.space1.id,
-          name: "Alice's Space #1 (Home)",
-          type: ['Space'],
-          controller: alice.did,
-          url: `/space/${alice.space1.id}/`,
-          linkset: `/space/${alice.space1.id}/linkset`
-        })
+        assert.deepStrictEqual(
+          withoutCreatedBy(withoutReplicas(withoutWriteStamp(rest))),
+          {
+            id: alice.space1.id,
+            name: "Alice's Space #1 (Home)",
+            type: ['Space'],
+            controller: alice.did,
+            url: `/space/${alice.space1.id}/`,
+            linkset: `/space/${alice.space1.id}/linkset`
+          }
+        )
       }
     },
     {
@@ -1273,14 +1283,17 @@ export const spacesApi: Suite<State> = {
               rootClient: alice.rootClient
             })
         })
-        assert.deepStrictEqual(withoutCreatedBy(withoutWriteStamp(rest)), {
-          id: alice.space1.id,
-          name: "Alice's Space #1 (Home)",
-          type: ['Space'],
-          controller: alice.did,
-          url: `/space/${alice.space1.id}/`,
-          linkset: `/space/${alice.space1.id}/linkset`
-        })
+        assert.deepStrictEqual(
+          withoutCreatedBy(withoutReplicas(withoutWriteStamp(rest))),
+          {
+            id: alice.space1.id,
+            name: "Alice's Space #1 (Home)",
+            type: ['Space'],
+            controller: alice.did,
+            url: `/space/${alice.space1.id}/`,
+            linkset: `/space/${alice.space1.id}/linkset`
+          }
+        )
       }
     },
     {
