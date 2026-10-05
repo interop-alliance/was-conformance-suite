@@ -1,5 +1,19 @@
 # @interop/was-conformance-suite Changelog
 
+## 0.30.0 - TBD
+
+### Changed
+
+- `write-validation.collection-reserved-id-put` expects a create-by-id `PUT` at
+  `/space/:s/export/meta` to be not found (404), not a 409 `reserved-id`. The
+  URL lies beneath a reserved endpoint and names no Collection. The
+  `reserved-id` assertion stays on the `POST` body case.
+
+### Added
+
+- `write-validation.reserved-segment-path-not-found`: a path beneath a reserved
+  segment that no endpoint defines (`GET /space/:s/export/x`) is a 404.
+
 ## 0.29.1 - 2026-10-04
 
 ### Changed

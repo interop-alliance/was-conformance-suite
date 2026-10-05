@@ -7,14 +7,16 @@
  * Covers two MUST-level rejections of malformed create requests: a
  * client-chosen Collection id that collides with the spec's Reserved Path
  * Segment Registry (409 `reserved-id`), and a Resource write that carries no
- * `Content-Type` header (400 `missing-content-type`). The reserved-id tests
- * exercise both Collection create wire shapes: a POST body `id`, and a PUT of
- * the Collection Metadata object (`.../meta`, the create-by-id path). A
- * Resource id has no reserved-id case: the server generates the id on Create
- * Resource, and a reserved segment in the Resource position is a reserved
- * endpoint (see reserved-methods-api). The Content-Type test signs
- * with the low-level `signCapabilityInvocation` primitive and sends raw
- * bytes via `fetch`, since a well-behaved client always sets a content type.
+ * `Content-Type` header (400 `missing-content-type`). The reserved-id case
+ * covers the one wire shape where the client names the id, a POST body `id`.
+ * A create-by-id `PUT` at `.../{reserved}/meta` names no Collection: the URL
+ * lies beneath a reserved endpoint, so it is not found (404), as is any other
+ * path beneath a reserved segment that no endpoint defines. A Resource id has
+ * no reserved-id case: the server generates the id on Create Resource, and a
+ * reserved segment in the Resource position is a reserved endpoint (see
+ * reserved-methods-api). The Content-Type test signs with the low-level
+ * `signCapabilityInvocation` primitive and sends raw bytes via `fetch`, since
+ * a well-behaved client always sets a content type.
  */
 import { signCapabilityInvocation } from '@interop/http-signature-zcap-invoke'
 import assert from '../harness/assert.js'
@@ -34,6 +36,23 @@ function assertReservedId(expectedError: any): void {
   assert.ok(expectedError, 'expected the reserved id to be rejected')
   assert.equal(expectedError.response.status, 409)
   assert.equal(expectedError.data.type, 'https://w3id.org/pws#reserved-id')
+}
+
+/**
+ * Asserts a request for a path beneath a reserved segment was not found:
+ * status 404 and not a `reserved-id` conflict. The body shape is not asserted,
+ * since the spec leaves an unmatched URL's body to the server.
+ *
+ * @param expectedError {any}   the error thrown by ZcapClient.request()
+ */
+function assertNotFoundBeneathReservedSegment(expectedError: any): void {
+  assert.ok(expectedError, 'expected the request to be refused')
+  assert.equal(expectedError.response.status, 404)
+  assert.notEqual(
+    expectedError.data?.type,
+    'https://w3id.org/pws#reserved-id',
+    'a path beneath a reserved segment is not found, not an id conflict'
+  )
 }
 
 export const writeValidationApi: Suite<State> = {
@@ -106,21 +125,21 @@ export const writeValidationApi: Suite<State> = {
     {
       id: 'write-validation.collection-reserved-id-put',
       name:
-        '[root] creating a Collection by PUT at a reserved path segment ' +
-        '(`export`) is rejected with 409 reserved-id',
+        '[root] a create-by-id PUT at a reserved path segment ' +
+        '(`export/meta`) is not found (404), not a reserved-id conflict',
       specRefs: [
         'https://w3id.org/pws#space-level-reserved-endpoints',
-        'https://w3id.org/pws#update-or-create-by-id-collection-operation',
-        'https://w3id.org/pws#reserved-id'
+        'https://w3id.org/pws#update-or-create-by-id-collection-operation'
       ],
       run: async (ctx, state) => {
         const { serverUrl } = ctx
         const { alice } = state
-        // v0.5 retires the bare Collection-URL PUT (it now answers a MUST
-        // 405, "Methods at Reserved Endpoints"), so create-by-id is a PUT of
-        // the Collection's Metadata object. That request reaches the
-        // parametric Update-or-Create-Collection route -- which must reject
-        // the reserved id rather than create the Collection.
+        // Create-by-id is a PUT of the Collection's Metadata object. With a
+        // reserved segment in the Collection position the URL lies beneath
+        // the `export` endpoint and names no Collection, so the server
+        // answers as it does for any unmatched URL rather than reading the
+        // segment as an id and refusing it as a conflict. Either way no
+        // Collection named `export` comes to exist.
         let expectedError: any
         try {
           await alice.rootClient.request({
@@ -135,7 +154,32 @@ export const writeValidationApi: Suite<State> = {
         } catch (err) {
           expectedError = err
         }
-        assertReservedId(expectedError)
+        assertNotFoundBeneathReservedSegment(expectedError)
+      }
+    },
+    {
+      id: 'write-validation.reserved-segment-path-not-found',
+      name:
+        '[root] a path beneath a reserved segment that no endpoint defines ' +
+        '(`export/x`) is not found (404)',
+      specRefs: ['https://w3id.org/pws#space-level-reserved-endpoints'],
+      run: async (ctx, state) => {
+        const { serverUrl } = ctx
+        const { alice } = state
+        let expectedError: any
+        try {
+          await alice.rootClient.request({
+            url: new URL(
+              `/space/${alice.space1.id}/export/x`,
+              serverUrl
+            ).toString(),
+            method: 'GET',
+            action: 'GET'
+          })
+        } catch (err) {
+          expectedError = err
+        }
+        assertNotFoundBeneathReservedSegment(expectedError)
       }
     },
     {
